@@ -1,0 +1,3996 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CUD Collab — Plateforme Collaborative</title>
+<link rel="icon" type="image/png" href="images/logo_cud_2.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#004d72',
+        'primary-dark': '#004d72',
+        'primary-light': '#E6F1F6',
+        accent: '#D4A843',
+        'accent-light': '#FDF6E3',
+        surface: '#F7F8FA',
+        card: '#FFFFFF',
+        ink: '#1A1D23',
+        muted: '#6B7280',
+        border: '#E5E7EB',
+      }
+    }
+  }
+}
+</script>
+<style>
+  :root {
+    --primary: #004d72;
+    --primary-dark: #004d72;
+    --accent: #D4A843;
+    --surface: #F7F8FA;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: #1A1D23; overflow: hidden; height: 100vh; }
+  .font-display { font-family: 'Playfair Display', serif; }
+
+  /* Scrollbar personnalisée */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.9); opacity: 1; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .fade-up { animation: fadeUp 0.4s ease-out both; }
+  .slide-in { animation: slideIn 0.3s ease-out both; }
+  .float-anim { animation: float 3s ease-in-out infinite; }
+
+  /* Sidebar */
+  .sidebar-item {
+    transition: all 0.2s ease;
+    position: relative;
+    border-radius: 10px;
+  }
+  .sidebar-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px; height: 60%;
+    background: var(--accent);
+    border-radius: 0 4px 4px 0;
+    transition: transform 0.25s ease;
+  }
+  .sidebar-item:hover, .sidebar-item.active {
+    background: rgba(10, 110, 79, 0.08);
+    color: var(--primary);
+  }
+  .sidebar-item.active::before { transform: translateY(-50%) scaleY(1); }
+  .sidebar-item.active { font-weight: 600; }
+
+  /* Cartes */
+  .card-hover {
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+    border-color: rgba(10, 110, 79, 0.15);
+  }
+
+  /* Badge pulsation */
+  .badge-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    background: #EF4444;
+    animation: pulse-ring 1.5s ease-out infinite;
+    z-index: -1;
+  }
+
+  /* Fichiers drag */
+  .drop-zone {
+    border: 2px dashed #ccc;
+    transition: all 0.3s ease;
+  }
+  .drop-zone.dragover {
+    border-color: var(--primary);
+    background: rgba(10,110,79,0.04);
+  }
+
+  /* Video grid */
+  .video-tile {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1d23 100%);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .video-tile::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%);
+  }
+
+  /* Toast */
+  .toast {
+    animation: fadeUp 0.3s ease-out both;
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+  }
+
+  /* Gradient mesh bg */
+  .mesh-bg {
+    background:
+      radial-gradient(ellipse at 10% 20%, rgba(10,110,79,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 80%, rgba(212,168,67,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(10,110,79,0.02) 0%, transparent 70%);
+  }
+
+  /* Chat bubble */
+  .chat-bubble-in {
+    background: #fff;
+    border-radius: 4px 16px 16px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .chat-bubble-out {
+    background: var(--primary);
+    color: white;
+    border-radius: 16px 4px 16px 16px;
+  }
+
+  /* Tab underline */
+  .tab-active {
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+    font-weight: 600;
+  }
+
+  /* Progress bar */
+  .progress-fill {
+    transition: width 1s ease-out;
+  }
+
+  /* Notification dot */
+  .notif-dot {
+    width: 8px; height: 8px;
+    background: #EF4444;
+    border-radius: 50%;
+    position: absolute;
+    top: -1px; right: -1px;
+    border: 2px solid white;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(10,110,79,0.1);
+  }
+</style>
+</head>
+<!-- ============ PAGE D'ACCUEIL AUTHENTIFICATION (CONNEXION & CRÉATION) ============ -->
+<div id="auth-landing-page" class="w-full min-h-screen flex flex-col items-center justify-center p-4 mesh-bg relative overflow-y-auto">
+  <!-- En-tête / Logo -->
+  <div class="text-center mb-6 fade-up">
+    <div class="w-16 h-16 rounded-2xl bg-white p-1 flex items-center justify-center mx-auto mb-3 shadow-xl ring-4 ring-primary-light">
+      <img src="images/logo_cud_2.png" class="w-full h-full object-contain p-0.5 rounded-2xl" alt="Logo CUD">
+    </div>
+    <h1 class="font-display text-3xl md:text-4xl text-ink font-bold leading-tight">CUD Collab</h1>
+    <p class="text-sm md:text-base text-muted mt-1 max-w-md">Espace Collaboratif Inter-Directions — Communauté Urbaine de Douala</p>
+  </div>
+
+  <!-- Carte d'Authentification principale -->
+  <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl fade-up overflow-hidden border border-border">
+    <!-- Onglets Connexion / Inscription -->
+    <div class="bg-gradient-to-r from-primary to-primary-dark p-5 text-white">
+      <div class="flex bg-black/20 p-1 rounded-xl text-sm font-medium">
+        <button id="landing-tab-login" onclick="switchLandingTab('login')" class="flex-1 py-2.5 rounded-lg transition-all bg-white text-primary font-semibold shadow-md">
+          <i class="fas fa-right-to-bracket mr-2"></i> Connexion
+        </button>
+        <button id="landing-tab-register" onclick="switchLandingTab('register')" class="flex-1 py-2.5 rounded-lg transition-all text-white/80 hover:text-white">
+          <i class="fas fa-user-plus mr-2"></i> Créer un compte
+        </button>
+      </div>
+    </div>
+
+    <div class="p-6 md:p-8">
+      <!-- FORMULAIRE CONNEXION -->
+      <div id="landing-form-login" class="space-y-4">
+
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Email professionnel</label>
+          <div class="relative">
+            <i class="fas fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-xs"></i>
+            <input type="email" id="landing-login-email" placeholder="votre.nom@cud.cm" class="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Mot de passe</label>
+          <div class="relative">
+            <i class="fas fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-xs"></i>
+            <input type="password" id="landing-login-password" placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+          </div>
+        </div>
+
+        <button onclick="loginWithLandingCredentials()" class="w-full py-3 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl text-sm transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mt-2">
+          <i class="fas fa-right-to-bracket text-xs"></i> Se connecter à la plateforme
+        </button>
+      </div>
+
+      <!-- FORMULAIRE CRÉATION DE COMPTE -->
+      <div id="landing-form-register" class="space-y-3.5 hidden">
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Photo de profil (optionnel)</label>
+          <div class="flex items-center gap-3 p-2.5 bg-surface border border-border rounded-xl">
+            <div class="relative w-11 h-11 rounded-full overflow-hidden border border-border flex-shrink-0 cursor-pointer group" onclick="document.getElementById('landing-reg-avatar-file').click()">
+              <img id="landing-reg-avatar-preview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                <i class="fas fa-camera text-xs"></i>
+              </div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-ink truncate">Choisir une photo</p>
+              <p class="text-[10px] text-muted truncate">JPG, PNG ou WEBP (max 5 Mo)</p>
+            </div>
+            <button type="button" onclick="document.getElementById('landing-reg-avatar-file').click()" class="px-2.5 py-1 bg-white border border-border hover:bg-surface text-ink text-xs rounded-lg transition-colors flex items-center gap-1 font-medium">
+              <i class="fas fa-upload text-[10px]"></i> Parcourir
+            </button>
+            <input type="file" id="landing-reg-avatar-file" accept="image/*" class="hidden" onchange="previewRegisterAvatar(this, 'landing-reg-avatar-preview')">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Nom & Prénom <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <i class="fas fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-xs"></i>
+            <input type="text" id="landing-reg-name" placeholder="ex: Paul Atangana" class="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded-xl text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-ink block mb-1">Poste / Fonction <span class="text-red-500">*</span></label>
+            <input type="text" id="landing-reg-role" placeholder="ex: Chef de Projet" class="w-full px-3.5 py-2 bg-surface border border-border rounded-xl text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-ink block mb-1">Direction <span class="text-red-500">*</span></label>
+            <select id="landing-reg-direction" class="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm">
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Email professionnel <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <i class="fas fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-xs"></i>
+            <input type="email" id="landing-reg-email" placeholder="paul.atangana@cud.cm" class="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded-xl text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-ink block mb-1">Mot de passe <span class="text-red-500">*</span></label>
+            <input type="password" id="landing-reg-password" placeholder="••••••••" class="w-full px-3.5 py-2 bg-surface border border-border rounded-xl text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-ink block mb-1">Confirmation <span class="text-red-500">*</span></label>
+            <input type="password" id="landing-reg-password-confirm" placeholder="••••••••" class="w-full px-3.5 py-2 bg-surface border border-border rounded-xl text-sm">
+          </div>
+        </div>
+
+        <button onclick="registerLandingAccount()" class="w-full py-3 bg-accent hover:bg-amber-500 text-ink font-semibold rounded-xl text-sm transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mt-3">
+          <i class="fas fa-user-plus text-xs"></i> Créer mon compte et accéder
+        </button>
+      </div>
+    </div>
+
+    <!-- Accès Admin direct sur la carte -->
+    <div class="p-4 bg-slate-900 text-white border-t border-slate-800 text-center">
+      <button onclick="openAdminLoginModal()" class="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2">
+        <i class="fas fa-shield-halved text-sm"></i> Accéder au Dashboard Admin Sécurisé
+      </button>
+    </div>
+  </div>
+
+  <p class="text-xs text-muted mt-6 text-center">© 2025 Communauté Urbaine de Douala — Tous droits réservés</p>
+</div>
+
+<!-- ============ Espace de travail principal ============ -->
+<div id="main-app-layout" class="flex h-screen w-full hidden">
+
+<!-- ============ SIDEBAR ============ -->
+<aside id="sidebar" class="w-[260px] min-w-[260px] bg-white border-r border-border flex flex-col h-screen z-30 transition-all duration-300">
+  <!-- Logo -->
+  <div class="p-5 border-b border-border">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-white p-0.5 border border-border flex items-center justify-center shadow-sm flex-shrink-0">
+        <img src="images/logo_cud_2.png" class="w-full h-full object-contain" alt="Logo CUD">
+      </div>
+      <div>
+        <h1 class="font-display text-lg text-ink leading-tight">CUD Collab</h1>
+        <p class="text-[10px] text-muted tracking-widest uppercase">Communauté Urbaine de Douala</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex-1 overflow-y-auto p-3 space-y-1">
+    <p class="text-[10px] text-muted uppercase tracking-widest px-3 pt-3 pb-1">Principal</p>
+    <button onclick="switchView('dashboard')" class="sidebar-item active w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="dashboard">
+      <i class="fas fa-grid-2 w-5 text-center"></i> Tableau de bord
+    </button>
+    <button onclick="switchView('forums')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="forums">
+      <i class="fas fa-comments w-5 text-center"></i> Forums thématiques
+      <span id="sidebar-forums-badge" class="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+    </button>
+    <button onclick="switchView('messages')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="messages">
+      <i class="fas fa-message w-5 text-center"></i> Messagerie
+      <span id="sidebar-messages-badge" class="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+    </button>
+
+    <p class="text-[10px] text-muted uppercase tracking-widest px-3 pt-5 pb-1">Collaboration</p>
+    <button onclick="switchView('files')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="files">
+      <i class="fas fa-folder-open w-5 text-center"></i> Partage de fichiers
+    </button>
+    <button onclick="switchView('meetings')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="meetings">
+      <i class="fas fa-video w-5 text-center"></i> Réunions & Visio
+      <span class="ml-auto w-2 h-2 bg-green-500 rounded-full relative badge-pulse"></span>
+    </button>
+    <button onclick="switchView('calendar')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="calendar">
+      <i class="fas fa-calendar-days w-5 text-center"></i> Calendrier
+    </button>
+
+    <p id="admin-sidebar-section-label" class="text-[10px] text-muted uppercase tracking-widest px-3 pt-5 pb-1">Organisation & Contrôle</p>
+    <button onclick="switchView('directory')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="directory">
+      <i class="fas fa-address-book w-5 text-center"></i> Annuaire
+    </button>
+    <button onclick="switchView('directions')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted" data-view="directions">
+      <i class="fas fa-sitemap w-5 text-center"></i> Directions
+    </button>
+    <button onclick="switchView('admin')" id="sidebar-admin-btn" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 font-medium" data-view="admin">
+      <i class="fas fa-shield-halved w-5 text-center text-amber-600"></i> Administration
+      <span class="ml-auto bg-amber-500 text-slate-950 font-bold text-[10px] px-1.5 py-0.5 rounded-full">PRO</span>
+    </button>
+  </nav>
+
+  <!-- Profil utilisateur -->
+  <div class="p-3 border-t border-border relative">
+    <div onclick="toggleUserDropdown()" class="flex items-center gap-3 p-2 rounded-xl hover:bg-surface cursor-pointer transition-colors">
+      <div class="relative">
+        <img id="user-avatar" class="w-9 h-9 rounded-full object-cover" alt="Avatar">
+        <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p id="user-name" class="text-sm font-semibold text-ink truncate">Compte</p>
+        <p id="user-direction" class="text-[11px] text-muted truncate"></p>
+      </div>
+      <i class="fas fa-chevron-up text-muted text-xs"></i>
+    </div>
+    <!-- Menu déroulant profil -->
+    <div id="user-dropdown" class="hidden absolute bottom-16 left-3 right-3 bg-white rounded-xl shadow-xl border border-border p-2 z-40 space-y-1">
+      <button onclick="openMyProfileModal()" class="w-full text-left px-3 py-2 text-xs text-ink hover:bg-surface rounded-lg flex items-center gap-2">
+        <i class="fas fa-user-pen text-primary"></i> Modifier mon profil
+      </button>
+      <button onclick="showAuthModal('login')" class="w-full text-left px-3 py-2 text-xs text-ink hover:bg-surface rounded-lg flex items-center gap-2">
+        <i class="fas fa-right-to-bracket text-primary"></i> Connexion / Changer
+      </button>
+      <button onclick="showAuthModal('register')" class="w-full text-left px-3 py-2 text-xs text-ink hover:bg-surface rounded-lg flex items-center gap-2">
+        <i class="fas fa-user-plus text-accent"></i> Créer un nouveau compte
+      </button>
+      <div class="border-t border-border/60 my-1"></div>
+      <button onclick="logoutUser()" class="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2">
+        <i class="fas fa-power-off"></i> Déconnexion
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- ============ CONTENU PRINCIPAL ============ -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden">
+
+  <!-- Header -->
+  <header class="h-16 min-h-[64px] bg-white border-b border-border flex items-center px-6 gap-4 z-20">
+    <button onclick="toggleSidebar()" class="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-surface transition-colors">
+      <i class="fas fa-bars text-muted"></i>
+    </button>
+
+    <!-- Recherche -->
+    <div class="flex-1 max-w-xl relative">
+      <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm"></i>
+      <input type="text" placeholder="Rechercher un collègue, un fichier, une discussion..." class="w-full pl-10 pr-4 py-2 bg-surface border border-transparent rounded-xl text-sm transition-all">
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- Notifications -->
+      <button onclick="toggleNotifications()" class="relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface transition-colors">
+        <i class="fas fa-bell text-muted"></i>
+        <span class="notif-dot"></span>
+      </button>
+
+      <!-- Bouton Connexion / Mon Compte -->
+      <button onclick="showAuthModal('login')" class="flex items-center gap-2 bg-surface hover:bg-border text-ink px-3 py-2 rounded-xl text-xs font-medium transition-colors border border-border">
+        <i class="fas fa-user text-primary"></i>
+        <span id="header-user-btn" class="hidden sm:inline">Connexion</span>
+      </button>
+
+      <!-- Nouveau -->
+      <button onclick="showCreateModal()" class="ml-1 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+        <i class="fas fa-plus text-xs"></i>
+        <span class="hidden sm:inline">Nouveau</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Zone de contenu scrollable -->
+  <div id="content-area" class="flex-1 overflow-y-auto mesh-bg">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="view-dashboard" class="p-6 space-y-6 fade-up">
+      <!-- Bienvenue -->
+      <div class="bg-gradient-to-r from-primary to-primary-dark rounded-2xl p-6 text-white relative overflow-hidden">
+        <div class="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
+        <div class="absolute right-20 bottom-0 w-32 h-32 bg-accent/20 rounded-full translate-y-1/2"></div>
+        <div class="relative z-10">
+          <p class="text-white/70 text-sm" id="dashboard-greeting">Bonjour</p>
+          <h2 class="font-display text-2xl mt-1">Bienvenue sur CUD Collab</h2>
+          <p class="text-white/80 text-sm mt-2 max-w-lg">Votre plateforme de collaboration inter-directions.</p>
+          <div class="flex gap-3 mt-4">
+            <button onclick="switchView('meetings')" class="bg-white/15 hover:bg-white/25 backdrop-blur px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+              <i class="fas fa-video mr-2"></i>Rejoindre une réunion
+            </button>
+            <button onclick="switchView('forums')" class="bg-accent hover:bg-amber-500 text-ink px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+              <i class="fas fa-pen mr-2"></i>Nouvelle discussion
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-hover">
+          <div class="flex items-center justify-between">
+            <div class="w-10 h-10 rounded-xl bg-primary-light flex items-center justify-center">
+              <i class="fas fa-users text-primary"></i>
+            </div>
+          </div>
+          <p class="text-2xl font-bold text-ink mt-3" id="dashboard-kpi-members">0</p>
+          <p class="text-xs text-muted mt-0.5">Membres actifs</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-hover">
+          <div class="flex items-center justify-between">
+            <div class="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center">
+              <i class="fas fa-comments text-accent"></i>
+            </div>
+            <span class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">+8%</span>
+          </div>
+          <p class="text-2xl font-bold text-ink mt-3" id="dashboard-kpi-messages">0</p>
+          <p class="text-xs text-muted mt-0.5">Messages ce mois</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-hover">
+          <div class="flex items-center justify-between">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+              <i class="fas fa-file-lines text-blue-600"></i>
+            </div>
+            <span class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">+24%</span>
+          </div>
+          <p class="text-2xl font-bold text-ink mt-3" id="dashboard-kpi-files">0</p>
+          <p class="text-xs text-muted mt-0.5">Fichiers partagés</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-hover">
+          <div class="flex items-center justify-between">
+            <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+              <i class="fas fa-video text-purple-600"></i>
+            </div>
+            <span class="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium">-3%</span>
+          </div>
+          <p class="text-2xl font-bold text-ink mt-3" id="dashboard-kpi-meetings">0</p>
+          <p class="text-xs text-muted mt-0.5">Réunions ce mois</p>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Activité récente -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-ink">Activité récente</h3>
+            <button class="text-xs text-primary hover:underline">Voir tout</button>
+          </div>
+          <div class="space-y-3" id="activity-feed"></div>
+        </div>
+
+        <!-- Réunions à venir -->
+        <div class="bg-white rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-ink">Prochaines réunions</h3>
+            <button onclick="switchView('meetings')" class="text-xs text-primary hover:underline">Toutes</button>
+          </div>
+          <div class="space-y-3" id="upcoming-meetings"></div>
+        </div>
+      </div>
+
+      <!-- Directions actives -->
+      <div class="bg-white rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-ink">Directions les plus actives</h3>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" id="active-directions"></div>
+      </div>
+    </div>
+
+    <!-- ===== FORUMS ===== -->
+    <div id="view-forums" class="p-6 space-y-6 hidden fade-up">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-display text-xl text-ink">Forums thématiques</h2>
+          <p class="text-sm text-muted mt-0.5">Discutez avec les autres directions sur les sujets stratégiques</p>
+        </div>
+        <button onclick="showNewTopicModal()" class="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+          <i class="fas fa-plus mr-2"></i>Nouveau sujet
+        </button>
+      </div>
+
+      <!-- Filtres thématiques -->
+      <div class="flex gap-2 flex-wrap" id="forum-filters"></div>
+
+      <!-- Liste des sujets -->
+      <div class="space-y-3" id="forum-topics"></div>
+    </div>
+
+    <!-- ===== MESSAGES ===== -->
+    <div id="view-messages" class="hidden h-full fade-up">
+      <div class="flex h-full">
+        <!-- Liste des conversations -->
+        <div class="w-80 min-w-[320px] border-r border-border bg-white flex flex-col">
+          <div class="p-4 border-b border-border">
+            <h2 class="font-semibold text-ink mb-3">Messages</h2>
+            <div class="relative">
+              <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs"></i>
+              <input type="text" placeholder="Rechercher..." class="w-full pl-9 pr-3 py-2 bg-surface border border-transparent rounded-lg text-sm">
+            </div>
+          </div>
+          <div class="flex-1 overflow-y-auto" id="conversations-list"></div>
+        </div>
+
+        <!-- Zone de chat -->
+        <div class="flex-1 flex flex-col bg-surface">
+          <div id="chat-header" class="h-16 min-h-[64px] bg-white border-b border-border flex items-center px-5 gap-3"></div>
+          <div id="chat-messages" class="flex-1 overflow-y-auto p-5 space-y-4"></div>
+          <div id="sticker-picker" class="hidden absolute bottom-20 right-5 bg-white border border-border rounded-xl shadow-xl p-3 grid grid-cols-5 gap-2 z-20"></div>
+          <div id="chat-input" class="p-4 bg-white border-t border-border">
+            <div class="flex items-end gap-3">
+              <button onclick="document.getElementById('message-file-input').click()" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-surface transition-colors text-muted" title="Joindre un fichier">
+                <i class="fas fa-paperclip"></i>
+              </button>
+              <input id="message-file-input" type="file" multiple accept="image/*,application/pdf,video/*,.doc,.docx,.xls,.xlsx,.csv" class="hidden" onchange="sendMessageFiles(this)">
+              <button onclick="toggleStickerPicker()" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-surface transition-colors text-muted" title="Envoyer un sticker"><i class="fas fa-face-smile"></i></button>
+              <div class="flex-1 relative">
+                <textarea id="msg-input" rows="1" placeholder="Écrire un message..." class="w-full px-4 py-2.5 bg-surface border border-transparent rounded-xl text-sm resize-none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+              </div>
+              <button onclick="sendMessage()" class="w-9 h-9 bg-primary hover:bg-primary-dark text-white rounded-lg flex items-center justify-center transition-colors">
+                <i class="fas fa-paper-plane text-sm"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== FICHIERS ===== -->
+    <div id="view-files" class="p-6 space-y-6 hidden fade-up">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-display text-xl text-ink">Partage de fichiers</h2>
+          <p class="text-sm text-muted mt-0.5">Échangez des documents entre directions</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="showUploadModal()" class="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+            <i class="fas fa-cloud-arrow-up mr-2"></i>Importer
+          </button>
+        </div>
+      </div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone" class="drop-zone rounded-2xl p-10 text-center bg-white cursor-pointer" onclick="showUploadModal()">
+        <div class="float-anim inline-block mb-3">
+          <div class="w-16 h-16 rounded-2xl bg-primary-light flex items-center justify-center mx-auto">
+            <i class="fas fa-cloud-arrow-up text-2xl text-primary"></i>
+          </div>
+        </div>
+        <p class="font-medium text-ink">Glissez vos fichiers ici ou cliquez pour parcourir</p>
+        <p class="text-xs text-muted mt-1">PDF, DOCX, XLSX, images — Taille gérée par le serveur</p>
+      </div>
+
+      <!-- Catégories de fichiers -->
+      <div class="flex gap-2 flex-wrap" id="file-filters"></div>
+
+      <!-- Grille de fichiers -->
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4" id="files-grid"></div>
+    </div>
+
+    <!-- ===== RÉUNIONS & VISIO ===== -->
+    <div id="view-meetings" class="p-6 space-y-6 hidden fade-up">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-display text-xl text-ink">Réunions & Vidéoconférences</h2>
+          <p class="text-sm text-muted mt-0.5">Planifiez et rejoignez des réunions inter-directions</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="showNewMeetingModal()" class="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+            <i class="fas fa-plus mr-2"></i>Nouvelle réunion
+          </button>
+          <button onclick="startVisio()" class="bg-accent hover:bg-amber-500 text-ink px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+            <i class="fas fa-video mr-2"></i>Démarrer une visio
+          </button>
+        </div>
+      </div>
+
+      <!-- Onglets -->
+      <div class="flex gap-6 border-b border-border">
+        <button onclick="switchMeetingTab('upcoming')" class="pb-3 text-sm tab-active meeting-tab" data-tab="upcoming">À venir</button>
+        <button onclick="switchMeetingTab('past')" class="pb-3 text-sm text-muted meeting-tab" data-tab="past">Passées</button>
+        <button onclick="switchMeetingTab('visio')" class="pb-3 text-sm text-muted meeting-tab" data-tab="visio">En visio maintenant</button>
+      </div>
+
+      <!-- Contenu des onglets -->
+      <div id="meetings-content"></div>
+    </div>
+
+    <!-- ===== CALENDRIER ===== -->
+    <div id="view-calendar" class="p-6 space-y-6 hidden fade-up">
+      <div>
+        <h2 class="font-display text-xl text-ink">Calendrier</h2>
+        <p class="text-sm text-muted mt-0.5">Vue d'ensemble des événements et réunions</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5" id="calendar-grid"></div>
+    </div>
+
+    <!-- ===== ANNUAIRE ===== -->
+    <div id="view-directory" class="p-6 space-y-6 hidden fade-up">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-display text-xl text-ink">Annuaire des agents</h2>
+          <p class="text-sm text-muted mt-0.5">Retrouvez tous les collaborateurs de la CUD</p>
+        </div>
+      </div>
+      <div class="flex gap-3 flex-wrap">
+        <div class="relative flex-1 max-w-sm">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs"></i>
+          <input type="text" id="dir-search" oninput="filterDirectory()" placeholder="Rechercher par nom ou poste..." class="w-full pl-9 pr-3 py-2.5 bg-white border border-border rounded-xl text-sm">
+        </div>
+        <select id="dir-filter" onchange="filterDirectory()" class="px-4 py-2.5 bg-white border border-border rounded-xl text-sm">
+          <option value="">Toutes les directions</option>
+        </select>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="directory-grid"></div>
+    </div>
+
+    <!-- ===== DIRECTIONS & ORGANIGRAMME ===== -->
+    <div id="view-directions" class="p-6 space-y-6 hidden fade-up">
+      <div>
+        <h2 class="font-display text-xl text-ink">Directions & organigramme</h2>
+        <p class="text-sm text-muted mt-0.5">Organisation des équipes selon les comptes du personnel enregistrés</p>
+      </div>
+      <div id="directions-grid" class="grid md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+    </div>
+
+    <!-- ===== DASHBOARD ADMINISTRATION (SÉCURISÉ) ===== -->
+    <div id="view-admin" class="p-6 space-y-6 hidden fade-up">
+      <!-- En-tête Admin Banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden border border-slate-700">
+        <div class="absolute right-0 top-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fas fa-shield-check"></i> Espace Administrateur Système
+              </span>
+              <span class="bg-primary-light/20 text-primary-light text-xs px-2.5 py-0.5 rounded-full font-medium">Uptime 99.9%</span>
+            </div>
+            <h2 class="font-display text-2xl md:text-3xl font-bold text-white">Tableau de Bord & Contrôle Global</h2>
+            <p class="text-slate-300 text-sm mt-1 max-w-xl">Supervisez les accès, gérez les comptes agents, modérez les activités inter-directions et analysez les statistiques en temps réel.</p>
+          </div>
+          <div class="flex flex-wrap gap-2.5">
+            <button onclick="broadcastSystemAlert()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2">
+              <i class="fas fa-bullhorn"></i> Alerte Globale
+            </button>
+            <button onclick="triggerSystemBackup()" class="bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2">
+              <i class="fas fa-database"></i> Sauvegarde (Backup)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs Admin (4 cartes) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl p-5 border border-border card-hover shadow-sm">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <i class="fas fa-users-gear text-xl"></i>
+            </div>
+            <span class="text-xs font-bold text-primary bg-primary-light px-2 py-0.5 rounded-full">+18 ce mois</span>
+          </div>
+          <p class="text-3xl font-bold text-ink mt-3" id="admin-kpi-users">17</p>
+          <p class="text-xs text-muted font-medium mt-0.5">Comptes Agents gérés</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-border card-hover shadow-sm">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <i class="fas fa-server text-xl"></i>
+            </div>
+            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full" id="admin-kpi-storage-label">0 Mo utilisés</span>
+          </div>
+          <p class="text-3xl font-bold text-ink mt-3" id="admin-kpi-storage">0 Mo</p>
+          <div class="w-full bg-slate-100 h-2 rounded-full mt-2 overflow-hidden">
+            <div class="bg-blue-600 h-full rounded-full" style="width: 45.2%"></div>
+          </div>
+          <p class="text-xs text-muted font-medium mt-1">Espace de stockage cloud CUD</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-border card-hover shadow-sm">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-primary-light text-primary flex items-center justify-center">
+              <i class="fas fa-circle-check text-xl"></i>
+            </div>
+            <span class="text-xs font-bold text-primary bg-primary-light px-2 py-0.5 rounded-full" id="admin-kpi-directions-status">Actif</span>
+          </div>
+          <p class="text-3xl font-bold text-ink mt-3" id="admin-kpi-directions">0 Directions</p>
+          <p class="text-xs text-muted font-medium mt-0.5">Interconnectées en temps réel</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-border card-hover shadow-sm">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+              <i class="fas fa-shield-halved text-xl"></i>
+            </div>
+            <span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">Sécurisé</span>
+          </div>
+          <p class="text-3xl font-bold text-ink mt-3" id="admin-kpi-alerts">0 Alerte</p>
+          <p class="text-xs text-muted font-medium mt-0.5">Tentative de brèche système</p>
+        </div>
+      </div>
+
+      <!-- Section Graphiques Détaillés -->
+      <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Graphique 1: Activité par Direction (Bar Chart) -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 border border-border shadow-sm">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h3 class="font-bold text-ink text-base">📊 Activité & Interactions par Direction</h3>
+              <p class="text-xs text-muted">Volume de messages, réunions et documents échangés</p>
+            </div>
+            <span class="text-xs bg-surface px-3 py-1 rounded-lg font-medium text-muted">Ce mois</span>
+          </div>
+          
+          <div class="space-y-4" id="admin-direction-bars">
+            <!-- Rendu dynamique JS des barres par direction -->
+          </div>
+        </div>
+
+        <!-- Graphique 2: Répartition des Réunions (Donut Chart SVG) -->
+        <div class="bg-white rounded-2xl p-6 border border-border shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="font-bold text-ink text-base mb-1">🍩 Répartition des Réunions</h3>
+            <p class="text-xs text-muted mb-4">Visio, Présentiel et Format Hybride</p>
+            
+            <!-- SVG Donut Chart -->
+            <div class="relative w-44 h-44 mx-auto my-2 flex items-center justify-center">
+              <svg viewBox="0 0 36 36" class="w-full h-full transform -rotate-90">
+                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#F1F5F9" stroke-width="3.8"></circle>
+                <!-- Visio 45% -->
+                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#2563EB" stroke-width="3.8" stroke-dasharray="45 55" stroke-dashoffset="0"></circle>
+                <!-- Présentiel 35% -->
+                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#004d72" stroke-width="3.8" stroke-dasharray="35 65" stroke-dashoffset="-45"></circle>
+                <!-- Hybride 20% -->
+                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#7C3AED" stroke-width="3.8" stroke-dasharray="20 80" stroke-dashoffset="-80"></circle>
+              </svg>
+              <div class="absolute text-center">
+                <p class="text-2xl font-bold text-ink">64</p>
+                <p class="text-[10px] text-muted uppercase tracking-wider">Total</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-4 border-t border-border">
+            <div class="flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-600"></span> Visioconférences</span>
+              <span class="font-bold text-ink">45% (29)</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-primary"></span> Présentiel</span>
+              <span class="font-bold text-ink">35% (22)</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-purple-600"></span> Format Hybride</span>
+              <span class="font-bold text-ink">20% (13)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graphique 3: Évolution Temporelle de l'activité (Area Chart SVG) -->
+      <div class="bg-white rounded-2xl p-6 border border-border shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-ink text-base">📈 Évolution de la Fréquentation & Fichiers Partagés</h3>
+            <p class="text-xs text-muted">Croissance des échanges réseau au cours des 6 derniers mois</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs font-medium">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-primary"></span> Fichiers (Mo)</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-accent"></span> Messages (x10)</span>
+          </div>
+        </div>
+
+        <!-- Line/Area Chart SVG -->
+        <div class="h-44 w-full relative">
+          <svg viewBox="0 0 500 120" class="w-full h-full preserve-3d">
+            <!-- Grille d'arrière-plan -->
+            <line x1="0" y1="30" x2="500" y2="30" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="4"></line>
+            <line x1="0" y1="60" x2="500" y2="60" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="4"></line>
+            <line x1="0" y1="90" x2="500" y2="90" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="4"></line>
+            
+            <!-- Area Gradient Fichiers -->
+            <defs>
+              <linearGradient id="primaryGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#004d72" stop-opacity="0.3"></stop>
+                <stop offset="100%" stop-color="#004d72" stop-opacity="0.0"></stop>
+              </linearGradient>
+            </defs>
+
+            <path d="M0,100 Q80,75 160,50 T320,40 T500,20 L500,120 L0,120 Z" fill="url(#primaryGradient)"></path>
+            <path d="M0,100 Q80,75 160,50 T320,40 T500,20" fill="none" stroke="#004d72" stroke-width="3"></path>
+            
+            <!-- Courbe Messages (Accent) -->
+            <path d="M0,110 Q80,90 160,70 T320,45 T500,30" fill="none" stroke="#D4A843" stroke-width="2.5" stroke-dasharray="4 2"></path>
+
+            <!-- Points de données -->
+            <circle cx="0" cy="100" r="4" fill="#004d72"></circle>
+            <circle cx="100" cy="70" r="4" fill="#004d72"></circle>
+            <circle cx="200" cy="45" r="4" fill="#004d72"></circle>
+            <circle cx="300" cy="38" r="4" fill="#004d72"></circle>
+            <circle cx="400" cy="28" r="4" fill="#004d72"></circle>
+            <circle cx="500" cy="20" r="5" fill="#004d72" stroke="#fff" stroke-width="2"></circle>
+          </svg>
+        </div>
+        <div class="flex justify-between text-[11px] text-muted font-medium mt-2 px-1">
+          <span>Août 2024</span><span>Sept 2024</span><span>Oct 2024</span><span>Nov 2024</span><span>Déc 2024</span><span>Jan 2025</span>
+        </div>
+      </div>
+
+      <!-- Table de Contrôle des Comptes Agents -->
+      <div class="bg-white rounded-2xl p-6 border border-border shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+          <div>
+            <h3 class="font-bold text-ink text-lg">⚙️ Gestion des Comptes Agents & Droits</h3>
+            <p class="text-xs text-muted">Activez, suspendez ou gérez les comptes des collaborateurs</p>
+          </div>
+          <div class="flex gap-2">
+            <div class="relative">
+              <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs"></i>
+              <input type="text" id="admin-user-search" oninput="renderAdminUsersTable()" placeholder="Rechercher un agent..." class="pl-9 pr-3 py-2 bg-surface border border-border rounded-xl text-xs">
+            </div>
+            <button onclick="showAuthLandingPage(); switchLandingTab('register')" class="bg-primary hover:bg-primary-dark text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5">
+              <i class="fas fa-user-plus"></i> Créer Agent
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-surface text-muted uppercase text-[10px] tracking-wider border-b border-border">
+                <th class="p-3">Agent</th>
+                <th class="p-3">Poste</th>
+                <th class="p-3">Direction</th>
+                <th class="p-3">Email</th>
+                <th class="p-3">Statut</th>
+                <th class="p-3 text-right">Actions de Contrôle</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-tbody" class="divide-y divide-border/60">
+              <!-- Rendu dynamique des utilisateurs -->
+            </tbody>
+          </table>
+        </div>
+      <!-- ============ SECTION GESTION DES DIRECTIONS ============ -->
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-border mt-8">
+        <div class="flex items-center justify-between gap-4 mb-6 flex-wrap">
+          <div>
+            <h3 class="font-bold text-ink text-lg">🏢 Gestion des Directions de la CUD</h3>
+            <p class="text-xs text-muted">Créez, modifiez les abréviations, couleurs, chefs et supprimez des directions</p>
+          </div>
+          <button onclick="openDirectionModal()" class="bg-primary hover:bg-primary text-white px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm">
+            <i class="fas fa-folder-plus text-sm"></i> Créer une Direction
+          </button>
+        </div>
+
+        <div id="admin-directions-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Gestion persistante des directions -->
+          <!-- Rendu dynamique des directions -->
+        </div>
+      </div>
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-red-200 mt-8">
+        <h3 class="font-bold text-ink text-lg mb-2"><i class="fas fa-rotate-left text-red-600 mr-2"></i>Réinitialiser les données par bloc</h3>
+        <p class="text-xs text-muted mb-4">Ces actions suppriment définitivement toutes les données du bloc sélectionné. Les autres blocs restent inchangés.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <button onclick="resetAdminDataBlock('forums')" class="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold">Forums thématiques</button>
+          <button onclick="resetAdminDataBlock('messages')" class="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold">Messagerie</button>
+          <button onclick="resetAdminDataBlock('meetings')" class="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold">Réunions & Visio</button>
+          <button onclick="resetAdminDataBlock('calendar')" class="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold">Calendrier</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-red-200 mt-8">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h3 class="font-bold text-ink text-lg"><i class="fas fa-database text-red-600 mr-2"></i>Réinitialiser les données de partage</h3>
+            <p class="text-xs text-muted mt-1">Supprime définitivement toutes les données de partage de fichiers.</p>
+          </div>
+          <button onclick="resetFileSharingData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 shadow-sm">
+            <i class="fas fa-rotate-left"></i> Réinitialiser les fichiers
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- ============ PANNEAU NOTIFICATIONS ============ -->
+<div id="notif-panel" class="fixed top-16 right-4 w-96 max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-border z-50 hidden overflow-hidden">
+  <div class="p-4 border-b border-border flex items-center justify-between">
+    <h3 class="font-semibold text-ink">Notifications</h3>
+    <button onclick="toggleNotifications()" class="text-muted hover:text-ink text-sm">Marquer tout lu</button>
+  </div>
+  <div class="overflow-y-auto max-h-[55vh]" id="notif-list"></div>
+</div>
+
+<!-- ============ MODAL CRÉATION ============ -->
+<div id="create-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl fade-up overflow-hidden">
+    <div class="p-5 border-b border-border flex items-center justify-between">
+      <h3 class="font-semibold text-ink" id="modal-title">Créer</h3>
+      <button onclick="closeModal()" class="w-8 h-8 rounded-lg hover:bg-surface flex items-center justify-center transition-colors">
+        <i class="fas fa-xmark text-muted"></i>
+      </button>
+    </div>
+    <div id="modal-body" class="p-5"></div>
+  </div>
+</div>
+
+<!-- ============ MODAL VISIO ============ -->
+<div id="visio-modal" class="fixed inset-0 bg-black z-50 hidden flex flex-col">
+  <div id="visio-content"></div>
+</div>
+
+<!-- ============ MODAL CONNEXION ADMIN SÉCURISÉ ============ -->
+<div id="admin-login-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-slate-900 text-white rounded-3xl w-full max-w-md shadow-2xl fade-up overflow-hidden border border-slate-800">
+    <div class="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-800 relative text-center">
+      <button onclick="closeAdminLoginModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+        <i class="fas fa-xmark text-sm"></i>
+      </button>
+      <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center mx-auto mb-3 shadow-inner">
+        <i class="fas fa-user-shield text-2xl"></i>
+      </div>
+      <h3 class="font-display text-xl font-bold text-white">Espace Administration Sécurisé</h3>
+      <p class="text-xs text-slate-400 mt-1">Accès réservé aux administrateurs de la CUD</p>
+    </div>
+
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="text-xs font-semibold text-slate-300 block mb-1">Email administrateur</label>
+        <div class="relative">
+          <i class="fas fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+          <input type="email" id="admin-login-user" placeholder="admin@gmail.com" value="" class="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-semibold text-slate-300 block mb-1">Mot de passe</label>
+        <div class="relative">
+          <i class="fas fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+          <input type="password" id="admin-login-pass" placeholder="••••••••" value="" class="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+        </div>
+      </div>
+
+      <button onclick="authenticateAdmin()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-lg hover:shadow-amber-500/20 flex items-center justify-center gap-2 mt-2">
+        <i class="fas fa-unlock-keyhole text-xs"></i> Déverrouiller le Dashboard Admin
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHARGEMENT ============ -->
+<div id="global-loader" class="fixed inset-0 z-[100] flex items-center justify-center bg-white/70 backdrop-blur-sm" role="status" aria-live="polite">
+  <div class="flex flex-col items-center gap-3 bg-white rounded-2xl shadow-xl px-8 py-6 border border-border max-w-xs text-center">
+    <div class="w-10 h-10 rounded-full border-4 border-primary-light border-t-primary animate-spin"></div>
+    <p id="global-loader-text" class="text-sm font-medium text-ink">Chargement de la plateforme…</p>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast-container"></div>
+
+<script>
+// ============================================================
+// DONNÉES DE L'APPLICATION
+// ============================================================
+
+// ============================================================
+// SÉCURITÉ : échappement des données saisies par les utilisateurs
+// ============================================================
+
+let loaderCount = 0;
+let loaderSlowTimer = null;
+
+function showLoader(message = 'Chargement…') {
+  const el = document.getElementById('global-loader');
+  if (!el) return;
+  loaderCount++;
+  document.getElementById('global-loader-text').textContent = message;
+  el.classList.remove('hidden');
+  el.classList.add('flex');
+  clearTimeout(loaderSlowTimer);
+  loaderSlowTimer = setTimeout(() => {
+    document.getElementById('global-loader-text').textContent = 'Le serveur répond lentement. Merci de patienter…';
+  }, 8000);
+}
+
+function hideLoader() {
+  loaderCount = Math.max(0, loaderCount - 1);
+  if (loaderCount > 0) return;
+  clearTimeout(loaderSlowTimer);
+  const el = document.getElementById('global-loader');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.classList.remove('flex');
+}
+
+async function withLoader(message, task) {
+  showLoader(message);
+  try {
+    return await task();
+  } finally {
+    hideLoader();
+  }
+}
+
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function safeUrl(url) {
+  const value = String(url || '').trim();
+  return /^(https?:|\/|data:image\/)/i.test(value) ? value : '#';
+}
+
+const API_TIMEOUT_MS = 20000;
+
+const TABLE_LABELS = {
+  directions: 'directions', users: 'comptes', topics: 'forums', conversations: 'conversations',
+  chat_history: 'messages', files: 'fichiers', meetings: 'réunions', notifications: 'notifications', activities: 'activités'
+};
+
+// fetch avec délai maximum et messages d'erreur compréhensibles.
+async function apiFetch(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('le serveur ne répond pas (délai dépassé).');
+    throw new Error('connexion au serveur impossible. Vérifiez votre réseau.');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Une réponse qui n'est pas du JSON (page d'erreur, proxy, serveur arrêté) devient un message clair.
+async function readApiJson(response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    return { ok: false, message: `réponse inattendue du serveur (HTTP ${response.status}).` };
+  }
+}
+
+function reportSaveError(collection, detail, quiet) {
+  console.warn(`Enregistrement (${collection}) impossible : ${detail}`);
+  if (!quiet) showToast(`Enregistrement impossible (${TABLE_LABELS[collection] || collection}) : ${detail}`, 'error');
+}
+
+async function persistCollection(collection, records, options = {}) {
+  try {
+    const token = await getAccessToken();
+    if (!token) {
+      reportSaveError(collection, 'session expirée. Reconnectez-vous.', options.quiet);
+      return false;
+    }
+    const response = await apiFetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ table: collection, records })
+    });
+    const result = await readApiJson(response);
+    if (!response.ok || !result?.ok) {
+      reportSaveError(collection, result?.message || response.statusText || 'erreur serveur', options.quiet);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    reportSaveError(collection, error.message, options.quiet);
+    return false;
+  }
+}
+
+async function initializeAuthClient() {
+  if (!window.supabase?.createClient) throw new Error('Le SDK Supabase Auth ne s’est pas chargé. Vérifiez votre connexion internet.');
+  const response = await apiFetch('/api/supabase-config');
+  const config = await readApiJson(response);
+  if (!response.ok || !config.url || !config.anonKey) {
+    throw new Error(config.error || 'Configuration Supabase Auth manquante sur le serveur.');
+  }
+  return window.supabase.createClient(config.url, config.anonKey);
+}
+
+let authClientPromise;
+
+async function getAuthClient() {
+  if (!authClientPromise) {
+    authClientPromise = initializeAuthClient().catch(error => {
+      console.error('Supabase Auth initialization failed:', error.message);
+      authClientPromise = null;
+      return null;
+    });
+  }
+  return authClientPromise;
+}
+
+async function deleteCollectionRecord(collection, id, options = {}) {
+  try {
+    const token = await getAccessToken();
+    if (!token) throw new Error('session expirée. Reconnectez-vous.');
+    const response = await apiFetch(`/api/data?table=${encodeURIComponent(collection)}&id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await readApiJson(response);
+    if (!response.ok || !result?.ok) throw new Error(result?.message || 'suppression refusée par le serveur.');
+    return true;
+  } catch (error) {
+    console.warn(`Suppression (${collection}) impossible : ${error.message}`);
+    if (!options.quiet) showToast(`Suppression impossible (${TABLE_LABELS[collection] || collection}) : ${error.message}`, 'error');
+    return false;
+  }
+}
+
+async function fetchCollection(collection) {
+  try {
+    const token = await getAccessToken();
+    if (!token && collection !== 'directions') return [];
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await apiFetch(`/api/data?table=${encodeURIComponent(collection)}`, { headers });
+    const result = await readApiJson(response);
+    if (!response.ok || !result?.ok) {
+      collectionLoadErrors.set(collection, result?.message || response.statusText);
+      return [];
+    }
+    return Array.isArray(result.data) ? result.data : [];
+  } catch (error) {
+    console.warn(`Unable to load ${collection}:`, error.message);
+    collectionLoadErrors.set(collection, error.message);
+    return [];
+  }
+}
+
+const collectionLoadErrors = new Map();
+
+function normalizeChatHistory(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (!Array.isArray(raw)) return {};
+  const grouped = {};
+  raw.forEach(item => {
+    const key = String(item.conversation_id ?? item.conversationId ?? item.chat_id ?? 'default');
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(item);
+  });
+  Object.values(grouped).forEach(list => list.sort((a, b) => Number(a.id || 0) - Number(b.id || 0)));
+  return grouped;
+}
+
+async function loadAppData() {
+  collectionLoadErrors.clear();
+  const client = await getAuthClient();
+  const { data: { session } } = client ? await client.auth.getSession() : { data: { session: null } };
+  if (!session) {
+    directions = await fetchCollection('directions');
+    if (collectionLoadErrors.has('directions')) {
+      showToast(`Impossible de charger les directions : ${collectionLoadErrors.get('directions')}`, 'error');
+    }
+    employes = [];
+    topics = [];
+    conversations = [];
+    chatHistory = {};
+    files = [];
+    meetings = [];
+    notifications = [];
+    activities = [];
+    currentUserId = null;
+    showAuthLandingPage();
+    return;
+  }
+
+  const [rawDirections, rawUsers, rawTopics, rawConversations, rawChatHistory, rawFiles, rawMeetings, rawNotifications, rawActivities] = await Promise.all([
+    fetchCollection('directions'),
+    fetchCollection('users'),
+    fetchCollection('topics'),
+    fetchCollection('conversations'),
+    fetchCollection('chat_history'),
+    fetchCollection('files'),
+    fetchCollection('meetings'),
+    fetchCollection('notifications'),
+    fetchCollection('activities')
+  ]);
+
+  directions = rawDirections;
+  employes = rawUsers;
+  topics = rawTopics;
+  conversations = rawConversations;
+  chatHistory = normalizeChatHistory(rawChatHistory);
+  files = rawFiles;
+  meetings = rawMeetings;
+  notifications = rawNotifications;
+  activities = rawActivities;
+
+  if (collectionLoadErrors.size) {
+    const failedTables = [...collectionLoadErrors.keys()].join(', ');
+    showToast(`Tables Supabase inaccessibles : ${failedTables}. ${collectionLoadErrors.values().next().value}`, 'error');
+  }
+
+  const authenticatedEmail = session?.user?.email?.toLowerCase();
+  let authenticatedProfile = authenticatedEmail ? employes.find(user => user.email?.toLowerCase() === authenticatedEmail) : null;
+
+  if (!authenticatedProfile && authenticatedEmail) {
+    const metadata = session.user.user_metadata || {};
+    if (metadata.name && metadata.role && metadata.dir) {
+      const profile = {
+        id: Date.now(),
+        name: metadata.name,
+        role: metadata.role,
+        dir: Number(metadata.dir),
+        email: authenticatedEmail,
+        img: '',
+        online: false
+      };
+      if (await persistCollection('users', [profile])) {
+        employes.push(profile);
+        authenticatedProfile = profile;
+      }
+    }
+  }
+
+  if (authenticatedProfile) {
+    currentUserId = authenticatedProfile.id;
+    document.getElementById('auth-landing-page')?.classList.add('hidden');
+    document.getElementById('main-app-layout')?.classList.remove('hidden');
+  } else {
+    currentUserId = null;
+    if (session && client) await client.auth.signOut();
+    showAuthLandingPage();
+    if (session) {
+      const usersError = collectionLoadErrors.get('users');
+      showToast(usersError ? `Profil illisible dans la table users : ${usersError}` : 'Aucun profil trouvé pour cette adresse. Vérifiez que public.users contient exactement la même adresse email et que isAdmin vaut true pour un compte admin.', 'error');
+    }
+  }
+
+  renderDashboard();
+  renderForums();
+  renderMessages();
+  renderFiles();
+  renderMeetings();
+  renderCalendar();
+  renderDirectory();
+  renderDirections();
+  updateSidebarBadges();
+  updateUserProfileUI();
+  updateAdminVisibility();
+  maybeJoinFromLink();
+}
+
+let directions = [];
+
+let employes = [];
+const thematiques = [
+  { id: 1, name: 'Budget & Finances', icon: 'fa-coins', color: '#D4A843' },
+  { id: 2, name: 'Infrastructures', icon: 'fa-road', color: '#2563EB' },
+  { id: 3, name: 'Urbanisme & Habitat', icon: 'fa-city', color: '#7C3AED' },
+  { id: 4, name: 'Environnement & Déchets', icon: 'fa-leaf', color: '#004d72' },
+  { id: 5, name: 'Ressources Humaines', icon: 'fa-user-tie', color: '#004d72' },
+  { id: 6, name: 'Communication & Citoyenneté', icon: 'fa-bullhorn', color: '#EA580C' },
+  { id: 7, name: 'Numérique & Innovation', icon: 'fa-microchip', color: '#0891B2' },
+  { id: 8, name: 'Sécurité & Circulation', icon: 'fa-shield-halved', color: '#DC2626' },
+];
+
+let topics = [];
+let conversations = [];
+let chatHistory = {};
+
+let files = [];
+let meetings = [];
+let notifications = [];
+let activities = [];
+
+// ============================================================
+// ÉTAT DE L'APPLICATION & AUTHENTIFICATION
+// ============================================================
+
+let currentUserId = null;
+let currentView = 'dashboard';
+let currentConversation = 1;
+let currentForumFilter = 0;
+let currentFileFilter = 'Tous';
+let currentMeetingTab = 'upcoming';
+let visioActive = false;
+
+const appDataPromise = withLoader('Chargement de la plateforme…', loadAppData);
+
+// ============================================================
+// FONCTIONS UTILITAIRES
+// ============================================================
+
+function getEmploye(id) { return employes.find(e => e.id === id); }
+function getDirection(id) { return directions.find(d => d.id === id); }
+function getThematique(id) { return thematiques.find(t => t.id === id); }
+
+function getUserImg(seed, size = 80) {
+  return typeof seed === 'string' && (seed.startsWith('data:image') || seed.startsWith('http') || seed.startsWith('/')) ? seed : '';
+}
+
+function getFileIcon(type) {
+  const icons = { pdf: 'fa-file-pdf text-red-500', excel: 'fa-file-excel text-green-600', word: 'fa-file-word text-blue-600', archive: 'fa-file-zipper text-amber-600', image: 'fa-file-image text-purple-500' };
+  return icons[type] || 'fa-file text-gray-400';
+}
+
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const colors = { success: 'bg-primary', error: 'bg-red-500', info: 'bg-blue-500' };
+  const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${colors[type]} text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm`;
+  toast.innerHTML = `<i class="fas ${icons[type]}"></i> ${esc(message)}`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+
+function switchView(view) {
+  // Protection : seul l'administrateur peut accéder à la vue admin
+  if (view === 'admin') {
+    const user = getEmploye(currentUserId);
+    if (!user || user.isAdmin !== true) {
+      showToast('Accès réservé à l\'Administrateur de la plateforme.', 'error');
+      return;
+    }
+  }
+
+  document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+  const target = document.getElementById(`view-${view}`);
+  if (target) {
+    target.classList.remove('hidden');
+    target.classList.remove('fade-up');
+    void target.offsetWidth;
+    target.classList.add('fade-up');
+  }
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === view);
+  });
+  currentView = view;
+
+  // Initialiser le contenu de la vue
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'forums') renderForums();
+  if (view === 'messages') renderMessages();
+  if (view === 'files') renderFiles();
+  if (view === 'meetings') renderMeetings();
+  if (view === 'calendar') renderCalendar();
+  if (view === 'directory') renderDirectory();
+  if (view === 'directions') renderDirections();
+  if (view === 'admin') renderAdminDashboard();
+  updateSidebarBadges();
+}
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  sb.classList.toggle('-translate-x-full');
+}
+
+function toggleNotifications() {
+  const panel = document.getElementById('notif-panel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) renderNotifications();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+
+function updateSidebarBadges() {
+  const forumBadge = document.getElementById('sidebar-forums-badge');
+  const messageBadge = document.getElementById('sidebar-messages-badge');
+  const forumCount = topics.length;
+  const messageCount = conversations.reduce((sum, conversation) => sum + (conversation.unread || 0), 0);
+  if (forumBadge) { forumBadge.textContent = forumCount; forumBadge.classList.toggle('hidden', forumCount === 0); }
+  if (messageBadge) { messageBadge.textContent = messageCount; messageBadge.classList.toggle('hidden', messageCount === 0); }
+}
+
+function updateDashboardStats() {
+  const activeMembers = employes.filter(user => !user.suspended).length;
+  const messageCount = Object.values(chatHistory).reduce((total, history) => total + (Array.isArray(history) ? history.length : 0), 0);
+  const values = {
+    'dashboard-kpi-members': activeMembers,
+    'dashboard-kpi-messages': messageCount,
+    'dashboard-kpi-files': files.length,
+    'dashboard-kpi-meetings': meetings.length
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value.toLocaleString('fr-FR');
+  });
+}
+
+function renderDashboard() {
+  updateDashboardStats();
+  const greeting = document.getElementById('dashboard-greeting');
+  const user = getEmploye(currentUserId);
+  if (greeting) greeting.textContent = user ? `Bonjour, ${user.name}` : 'Bonjour';
+  // Activité récente
+  const feed = document.getElementById('activity-feed');
+  feed.innerHTML = activities.length ? activities.slice(0, 8).map((a, i) => {
+    const user = getEmploye(a.user) || employes[0] || { name: 'Utilisateur', img: 'cuduser1' };
+    return `<div class="flex items-start gap-3 p-3 rounded-xl hover:bg-surface transition-colors slide-in" style="animation-delay: ${i * 60}ms">
+      <img src="${getUserImg(user.img, 40)}" class="w-9 h-9 rounded-full object-cover mt-0.5" alt="${esc(user.name)}">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm"><span class="font-semibold text-ink">${esc(user.name)}</span> <span class="text-muted">${esc(a.action || 'a effectué une activité')}</span> <span class="font-medium text-primary">${esc(a.target || '')}</span></p>
+        <p class="text-xs text-muted mt-0.5">${esc(a.time || 'À l’instant')}</p>
+      </div>
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: ${(a.color || '#004d72')}15">
+        <i class="fas ${a.icon || 'fa-circle-info'} text-xs" style="color: ${a.color || '#004d72'}"></i>
+      </div>
+    </div>`;
+  }).join('') : '<p class="text-sm text-muted text-center py-8">Aucune activité récente pour le moment.</p>';
+
+  // Réunions à venir
+  const upcoming = document.getElementById('upcoming-meetings');
+  const upcomingMeetings = meetings.filter(m => m.status === 'upcoming').slice(0, 4);
+  upcoming.innerHTML = upcomingMeetings.map((m, i) => {
+    const org = getEmploye(m.organizer) || employes[0] || { name: 'Utilisateur' };
+    const typeIcon = m.type === 'visio' ? 'fa-video' : m.type === 'hybride' ? 'fa-video + fa-location-dot' : 'fa-location-dot';
+    const typeColor = m.type === 'visio' ? 'text-blue-500 bg-blue-50' : m.type === 'hybride' ? 'text-purple-500 bg-purple-50' : 'text-green-600 bg-green-50';
+    return `<div class="p-3 rounded-xl border border-border hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer slide-in" style="animation-delay: ${i * 80}ms" onclick="switchView('meetings')">
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class="text-[10px] px-2 py-0.5 rounded-full font-medium ${typeColor}">${m.type === 'visio' ? 'Visio' : m.type === 'hybride' ? 'Hybride' : 'Présentiel'}</span>
+        <span class="text-[11px] text-muted ml-auto">${esc(m.time)} — ${esc(m.duration)}</span>
+      </div>
+      <p class="text-sm font-medium text-ink leading-snug">${esc(m.title)}</p>
+      <p class="text-xs text-muted mt-1">Par ${esc(org.name)} — ${m.participants.length} participants</p>
+    </div>`;
+  }).join('');
+
+  // Directions actives
+  const dirs = document.getElementById('active-directions');
+  dirs.innerHTML = directions.map((d, i) => {
+    return `<div class="text-center p-3 rounded-xl hover:bg-surface transition-colors cursor-pointer slide-in" style="animation-delay: ${i * 50}ms" onclick="switchView('directions')">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2" style="background: ${d.color}15">
+        <i class="fas ${d.icon}" style="color: ${d.color}"></i>
+      </div>
+      <p class="text-xs font-semibold text-ink">${esc(d.abbr)}</p>
+      <p class="text-[10px] text-muted">${d.members} agents</p>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// FORUMS
+// ============================================================
+
+function renderForums() {
+  updateDashboardStats();
+  // Filtres
+  const filters = document.getElementById('forum-filters');
+  filters.innerHTML = `<button onclick="filterForum(0)" class="px-4 py-2 rounded-xl text-sm font-medium transition-colors ${currentForumFilter === 0 ? 'bg-primary text-white' : 'bg-white text-muted hover:bg-surface border border-border'}">Toutes</button>` +
+    thematiques.map(t => `<button onclick="filterForum(${t.id})" class="px-4 py-2 rounded-xl text-sm font-medium transition-colors ${currentForumFilter === t.id ? 'text-white' : 'bg-white text-muted hover:bg-surface border border-border'}" style="${currentForumFilter === t.id ? `background: ${t.color}` : ''}"><i class="fas ${t.icon} mr-1.5 text-xs"></i>${esc(t.name)}</button>`).join('');
+
+  // Sujets
+  const container = document.getElementById('forum-topics');
+  const filtered = currentForumFilter === 0 ? topics : topics.filter(t => t.thematique === currentForumFilter);
+  // Épinglés en premier
+  const sorted = [...filtered].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  container.innerHTML = sorted.map((t, i) => {
+    const author = getEmploye(t.author) || employes[0];
+    const them = getThematique(t.thematique) || thematiques[0];
+    const lastReply = t.lastReply || { user: t.author, text: '', time: '' };
+    const lastUser = getEmploye(lastReply.user) || author;
+    return `<div class="bg-white rounded-2xl p-5 card-hover cursor-pointer slide-in" style="animation-delay: ${i * 60}ms" onclick="openTopic(${t.id})">
+      <div class="flex items-start gap-4">
+        <img src="${getUserImg(author.img, 48)}" class="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5" alt="${esc(author.name)}">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            ${t.pinned ? '<span class="text-[10px] bg-accent-light text-accent px-2 py-0.5 rounded-full font-medium"><i class="fas fa-thumbtack mr-1"></i>Épinglé</span>' : ''}
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" style="background: ${them.color}15; color: ${them.color}"><i class="fas ${them.icon} mr-1"></i>${esc(them.name)}</span>
+          </div>
+          <h4 class="text-sm font-semibold text-ink mt-1.5 leading-snug">${esc(t.title)}</h4>
+          <p class="text-xs text-muted mt-1">Par <span class="font-medium">${esc(author.name)}</span> — ${new Date(t.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+        </div>
+        <div class="flex flex-col items-end gap-1 flex-shrink-0">
+          <div class="flex items-center gap-3 text-xs text-muted">
+            <span><i class="fas fa-comment mr-1"></i>${t.replies}</span>
+            <span><i class="fas fa-eye mr-1"></i>${t.views}</span>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 pt-3 border-t border-border/60 flex items-center gap-2">
+        <img src="${getUserImg(lastUser.img, 28)}" class="w-6 h-6 rounded-full object-cover" alt="">
+        <p class="text-xs text-muted flex-1 truncate"><span class="font-medium text-ink">${esc(lastUser.name)}</span>: ${esc(lastUser.text)}</p>
+        <span class="text-[10px] text-muted flex-shrink-0">${esc(lastUser.time)}</span>
+      </div>
+    </div>`;
+  }).join('');
+  updateSidebarBadges();
+}
+
+function filterForum(id) {
+  currentForumFilter = id;
+  renderForums();
+}
+
+function openTopic(id) {
+  const topic = topics.find(t => t.id === id);
+  if (!topic) return;
+
+  topic.views = (topic.views || 0) + 1;
+  persistCollection('topics', [topic]);
+
+  const author = getEmploye(topic.author) || employes[0];
+  const them = getThematique(topic.thematique) || thematiques[0];
+
+  if (!topic.commentsList) {
+    topic.commentsList = [
+      { id: 1, user: topic.lastReply ? topic.lastReply.user : topic.author, text: topic.lastReply ? topic.lastReply.text : 'Discussion ouverte pour concertation entre les directions de la CUD.', time: topic.lastReply ? topic.lastReply.time : 'Récemment' }
+    ];
+  }
+
+  document.getElementById('modal-title').textContent = topic.title;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="space-y-4">
+      <div class="flex items-center gap-2 flex-wrap border-b border-border pb-3">
+        <span class="text-xs px-2.5 py-0.5 rounded-full font-medium" style="background: ${them.color}15; color: ${them.color}">
+          <i class="fas ${them.icon} mr-1"></i> ${esc(them.name)}
+        </span>
+        <span class="text-xs text-muted">Publié par <strong class="text-ink">${esc(author.name)}</strong> (${esc(getDirection(author.dir)?.abbr || '')})</span>
+        <span class="text-xs text-muted ml-auto"><i class="fas fa-eye mr-1"></i>${topic.views} vues</span>
+      </div>
+
+      <div class="bg-surface p-4 rounded-xl border border-border">
+        <p class="text-sm text-ink leading-relaxed">${esc(topic.description || topic.title + ' — Ce sujet concerne la coordination stratégique entre les directions de la Communauté Urbaine de Douala.')}</p>
+      </div>
+
+      <h4 class="font-semibold text-ink text-sm pt-2">Commentaires et Réponses (${topic.commentsList.length})</h4>
+      <div class="space-y-3 max-h-60 overflow-y-auto pr-1">
+        ${topic.commentsList.map(c => {
+          const cu = getEmploye(c.user) || author;
+          return `<div class="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
+            <img src="${getUserImg(cu.img, 36)}" class="w-8 h-8 rounded-full object-cover">
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <p class="text-xs font-bold text-ink">${esc(cu.name)}</p>
+                <span class="text-[10px] text-muted">${esc(c.time)}</span>
+              </div>
+              <p class="text-xs text-muted mt-1">${esc(c.text)}</p>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div class="pt-2 border-t border-border space-y-2">
+        <label class="text-xs font-semibold text-ink block">Ajouter votre contribution :</label>
+        <textarea id="topic-reply-input" rows="2" placeholder="Écrire un commentaire..." class="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs resize-none"></textarea>
+        <div class="flex justify-end gap-2">
+          <button onclick="closeModal()" class="px-4 py-2 bg-surface text-muted text-xs font-medium rounded-xl">Fermer</button>
+          <button onclick="submitTopicReply(${topic.id})" class="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary-dark">
+            <i class="fas fa-paper-plane mr-1"></i> Publier
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openModal();
+}
+
+async function submitTopicReply(topicId) {
+  const input = document.getElementById('topic-reply-input');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  const topic = topics.find(t => t.id === topicId);
+  if (!topic) return;
+
+  if (!topic.commentsList) topic.commentsList = [];
+
+  const me = getEmploye(currentUserId) || employes[0];
+  const newComment = {
+    id: Date.now(),
+    user: me.id,
+    text: text,
+    time: 'À l\'instant'
+  };
+
+  topic.commentsList.push(newComment);
+  topic.replies = topic.commentsList.length;
+  topic.lastReply = { user: me.id, text: text, time: 'À l\'instant' };
+
+  if (!await persistCollection('topics', [topic], { quiet: true })) {
+    topic.commentsList.pop();
+    topic.replies = topic.commentsList.length;
+    showToast('Le commentaire n’a pas pu être enregistré dans la base de données.', 'error');
+    return;
+  }
+  renderForums();
+  openTopic(topicId);
+  showToast('Votre commentaire a été publié et enregistré en base.');
+}
+
+function showNewTopicModal() {
+  document.getElementById('modal-title').textContent = 'Nouveau sujet de discussion';
+  document.getElementById('modal-body').innerHTML = `
+    <form id="new-topic-form" onsubmit="event.preventDefault(); createNewTopicFromModal();" class="space-y-4">
+      <div>
+        <label class="text-sm font-medium text-ink block mb-1.5">Thématique</label>
+        <select id="new-topic-thematique" class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+          ${thematiques.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-sm font-medium text-ink block mb-1.5">Titre <span class="text-red-500">*</span></label>
+        <input type="text" id="new-topic-title" placeholder="Titre de votre sujet..." class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+      </div>
+      <div>
+        <label class="text-sm font-medium text-ink block mb-1.5">Contenu / Description <span class="text-red-500">*</span></label>
+        <textarea id="new-topic-desc" rows="4" placeholder="Décrivez votre sujet en détail..." class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm resize-none"></textarea>
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="closeModal()" class="px-5 py-2.5 bg-surface text-muted rounded-xl text-sm font-medium hover:bg-border transition-colors">Annuler</button>
+        <button type="button" onclick="return createNewTopicFromModal();" class="px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors">Publier en BDD</button>
+      </div>
+    </form>`;
+  openModal();
+}
+
+async function createNewTopicFromModal() {
+  const title = document.getElementById('new-topic-title')?.value?.trim();
+  const desc = document.getElementById('new-topic-desc')?.value?.trim();
+  const themId = parseInt(document.getElementById('new-topic-thematique')?.value);
+
+  if (!title || !desc) {
+    showToast('Veuillez renseigner le titre et le contenu.', 'error');
+    return;
+  }
+
+  const me = getEmploye(currentUserId) || employes.find(e => e.id !== 999) || employes[0];
+  if (!me || !themId) {
+    showToast('Impossible de publier sans utilisateur ou thématique valide.', 'error');
+    return;
+  }
+  const newTopic = {
+    id: Date.now(),
+    title: title,
+    description: desc,
+    thematique: themId,
+    author: me.id,
+    date: new Date().toISOString(),
+    replies: 0,
+    views: 1,
+    pinned: false,
+    lastReply: { user: me.id, text: desc.length > 50 ? desc.substring(0, 50) + '...' : desc, time: 'À l\'instant' },
+    commentsList: []
+  };
+
+  topics.unshift(newTopic);
+  if (!await persistCollection('topics', [newTopic], { quiet: true })) {
+    topics.shift();
+    showToast('Impossible d’enregistrer le sujet dans la base de données.', 'error');
+    return false;
+  }
+
+  activities.unshift({
+    user: me.id,
+    action: 'a créé le sujet',
+    target: title,
+    time: 'À l\'instant',
+    icon: 'fa-pen-to-square',
+    color: '#004d72'
+  });
+  persistCollection('activities', [activities[0]]);
+
+  renderForums();
+  renderDashboard();
+  updateSidebarBadges();
+  closeModal();
+  showToast(`Sujet "${title}" publié avec succès !`);
+  return false;
+}
+
+// ============================================================
+// MESSAGES
+// ============================================================
+
+function openConversationWith(userId) {
+  const target = getEmploye(userId);
+  if (!target || target.id === currentUserId) return;
+  let conversation = conversations.find(c => c.participants.length === 2 && c.participants.includes(userId) && c.participants.includes(currentUserId));
+  if (!conversation) {
+    conversation = { id: Date.now(), participants: [currentUserId, userId], lastMsg: 'Nouvelle conversation', time: 'À l’instant', unread: 0 };
+    conversations.unshift(conversation);
+    chatHistory[conversation.id] = [];
+    persistCollection('conversations', [conversation]);
+  }
+  currentConversation = conversation.id;
+  switchView('messages');
+  renderMessages();
+  renderChat();
+}
+
+function renderMessages() {
+  updateDashboardStats();
+  const list = document.getElementById('conversations-list');
+  list.innerHTML = conversations.map((c, i) => {
+    const otherId = c.participants.find(p => p !== currentUserId);
+    const other = getEmploye(otherId);
+    const isGroup = c.participants.length > 2;
+    const isActive = c.id === currentConversation;
+    return `<div onclick="selectConversation(${c.id})" class="flex items-center gap-3 p-3 cursor-pointer transition-colors ${isActive ? 'bg-primary-light border-l-2 border-primary' : 'hover:bg-surface border-l-2 border-transparent'} slide-in" style="animation-delay: ${i * 40}ms">
+      <div class="relative flex-shrink-0">
+        ${isGroup
+          ? `<div class="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center"><i class="fas fa-users text-primary text-sm"></i></div>`
+          : `<img src="${getUserImg(other.img, 40)}" class="w-10 h-10 rounded-full object-cover" alt="${esc(other.name)}">`
+        }
+        ${other?.online ? '<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>' : ''}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-semibold text-ink truncate">${esc(isGroup ? 'Groupe — ' + c.participants.map(p => getEmploye(p)?.name?.split(' ')[0]).join(', ') : other?.name)}</p>
+          <span class="text-[10px] text-muted flex-shrink-0">${esc(c.time)}</span>
+        </div>
+        <p class="text-xs text-muted truncate mt-0.5">${esc(c.lastMsg)}</p>
+      </div>
+      ${c.unread > 0 ? `<span class="w-5 h-5 bg-primary text-white text-[10px] rounded-full flex items-center justify-center flex-shrink-0 font-medium">${c.unread}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  renderChat();
+  updateSidebarBadges();
+}
+
+function selectConversation(id) {
+  currentConversation = id;
+  const conv = conversations.find(c => c.id === id);
+  if (conv) conv.unread = 0;
+  renderMessages();
+}
+
+function renderChat() {
+  const conv = conversations.find(c => c.id === currentConversation);
+  if (!conv) return;
+
+  const otherId = conv.participants.find(p => p !== currentUserId);
+  const other = getEmploye(otherId);
+  const isGroup = conv.participants.length > 2;
+
+  // Header
+  const header = document.getElementById('chat-header');
+  header.innerHTML = `
+    ${isGroup
+      ? `<div class="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center"><i class="fas fa-users text-primary text-sm"></i></div>
+         <div><p class="text-sm font-semibold text-ink">Groupe — ${esc(conv.participants.map(p => getEmploye(p)?.name?.split(' ')[0]).join(', '))}</p><p class="text-[11px] text-muted">${conv.participants.length} membres</p></div>`
+      : `<img src="${getUserImg(other.img, 36)}" class="w-9 h-9 rounded-full object-cover" alt="${esc(other.name)}">
+         <div><p class="text-sm font-semibold text-ink">${esc(other.name)}</p><p class="text-[11px] text-muted">${esc(other.role)} — ${esc(getDirection(other.dir)?.abbr)}</p></div>`
+    }
+    <div class="ml-auto flex gap-2">
+      <button class="w-8 h-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted transition-colors"><i class="fas fa-phone text-sm"></i></button>
+      <button onclick="startVisioWith(${otherId})" class="w-8 h-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted transition-colors"><i class="fas fa-video text-sm"></i></button>
+      <button class="w-8 h-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted transition-colors"><i class="fas fa-ellipsis-vertical text-sm"></i></button>
+    </div>`;
+
+  // Messages
+  const msgs = chatHistory[currentConversation] || [];
+  const messagesEl = document.getElementById('chat-messages');
+  messagesEl.innerHTML = msgs.map((m, i) => {
+    const isMe = m.sender === currentUserId;
+    const sender = getEmploye(m.sender);
+    return `<div class="flex ${isMe ? 'justify-end' : 'justify-start'} slide-in" style="animation-delay: ${i * 50}ms">
+      <div class="flex items-end gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : ''}">
+        ${!isMe ? `<img src="${getUserImg(sender.img, 32)}" class="w-7 h-7 rounded-full object-cover flex-shrink-0">` : ''}
+        <div>
+          ${!isMe && isGroup ? `<p class="text-[10px] text-muted mb-1 ml-1">${esc(sender.name)}</p>` : ''}
+          <div class="${isMe ? 'chat-bubble-out' : 'chat-bubble-in'} px-4 py-2.5">
+            ${m.text ? `<p class="text-sm">${esc(m.text)}</p>` : ''}
+            ${m.fileUrl ? `<div class="mt-1 p-2 rounded-lg bg-surface text-xs"><i class="fas fa-paperclip mr-1 text-primary"></i><a href="${esc(safeUrl(m.fileUrl))}" download="${esc(m.fileName)}" class="text-primary hover:underline">${esc(m.fileName)}</a></div>` : ''}
+            ${m.sticker ? `<div class="text-4xl">${esc(m.sticker)}</div>` : ''}
+          </div>
+          <p class="text-[10px] text-muted mt-1 ${isMe ? 'text-right mr-1' : 'ml-1'}">${esc(m.time)}</p>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function toggleStickerPicker() {
+  const picker = document.getElementById('sticker-picker');
+  if (!picker) return;
+  if (!picker.innerHTML) ['👍','👏','✅','🎉','😊','🙏','💡','🔥','📌','🚀'].forEach(sticker => { const button = document.createElement('button'); button.type = 'button'; button.className = 'text-2xl hover:scale-125 transition-transform'; button.textContent = sticker; button.onclick = () => sendSticker(sticker); picker.appendChild(button); });
+  picker.classList.toggle('hidden');
+}
+function newRecordId() {
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
+function currentTimeLabel() {
+  return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Un message = une ligne dans chat_history. En cas d'échec, l'ajout local est annulé.
+async function addChatMessage(conversationId, message) {
+  if (!chatHistory[conversationId]) chatHistory[conversationId] = [];
+  chatHistory[conversationId].push(message);
+  renderChat();
+  const saved = await persistCollection('chat_history', [{ ...message, conversation_id: conversationId }], { quiet: true });
+  if (!saved) {
+    chatHistory[conversationId] = chatHistory[conversationId].filter(m => m !== message);
+    renderChat();
+    showToast('Le message n’a pas pu être enregistré.', 'error');
+    return false;
+  }
+  return true;
+}
+
+async function sendSticker(sticker) {
+  const me = getEmploye(currentUserId);
+  if (!me || !currentConversation) return;
+  document.getElementById('sticker-picker')?.classList.add('hidden');
+  await addChatMessage(currentConversation, { id: newRecordId(), sender: me.id, sticker, text: '', time: currentTimeLabel() });
+}
+
+async function sendMessageFiles(input) {
+  const selected = Array.from(input.files || []);
+  const me = getEmploye(currentUserId);
+  if (!me || !currentConversation) return;
+  for (const file of selected) {
+    try {
+      const uploaded = await withLoader('Envoi du fichier…', () => uploadAttachmentFile(file, me.id));
+      await addChatMessage(currentConversation, { id: newRecordId(), sender: me.id, fileName: uploaded.name, fileUrl: uploaded.path, text: '', time: currentTimeLabel() });
+    } catch (error) {
+      showToast(`Impossible d’envoyer ${file.name} : ${error.message}`, 'error');
+    }
+  }
+  input.value = '';
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text = input ? input.value.trim() : '';
+  const me = getEmploye(currentUserId);
+  if (!text || !me || !currentConversation) return;
+
+  const timeStr = currentTimeLabel();
+  const conv = conversations.find(c => c.id === currentConversation);
+  const previous = conv ? { lastMsg: conv.lastMsg, time: conv.time } : null;
+  input.value = '';
+  if (conv) {
+    conv.lastMsg = text.length > 40 ? text.substring(0, 40) + '...' : text;
+    conv.time = timeStr;
+  }
+
+  const ok = await addChatMessage(currentConversation, { id: newRecordId(), sender: me.id, text, time: timeStr });
+  if (!ok) {
+    input.value = text;
+    if (conv) Object.assign(conv, previous);
+    renderMessages();
+    return;
+  }
+  if (conv) await persistCollection('conversations', [conv]);
+  renderMessages();
+}
+
+/* Réponse envoyée uniquement par le destinataire connecté. */
+/*
+  setTimeout(() => {
+    const otherId = conv ? conv.participants.find(p => p !== me.id) || 2 : 2;
+    const replies = [
+      'Bien noté, je m\'en occupe.',
+      'Merci pour l\'information. Je reviens vers vous rapidement.',
+      'C\'est bien noté. On en discute à la prochaine réunion.',
+      'D\'accord, je transmets à l\'équipe de la direction.',
+      'Très bien. Je vous fais un retour avant la fin de la journée.',
+    ];
+    const replyTime = new Date();
+    const rTimeStr = replyTime.getHours().toString().padStart(2, '0') + ':' + replyTime.getMinutes().toString().padStart(2, '0');
+
+    chatHistory[currentConversation].push({
+      sender: otherId,
+      text: replies[Math.floor(Math.random() * replies.length)],
+      time: rTimeStr
+    });
+
+    if (conv) {
+      conv.lastMsg = chatHistory[currentConversation][chatHistory[currentConversation].length - 1].text;
+      conv.time = rTimeStr;
+    }
+
+
+    renderChat();
+    renderMessages();
+  }, 1200);
+  */
+
+// ============================================================
+// FICHIERS
+// ============================================================
+
+function renderFiles() {
+  updateDashboardStats();
+  const categories = ['Tous', ...new Set(files.map(f => f.category))];
+  const filters = document.getElementById('file-filters');
+  filters.innerHTML = categories.map(c =>
+    `<button onclick="filterFiles('${c}')" class="px-4 py-2 rounded-xl text-sm font-medium transition-colors ${currentFileFilter === c ? 'bg-primary text-white' : 'bg-white text-muted hover:bg-surface border border-border'}">${c}</button>`
+  ).join('');
+
+  const filtered = currentFileFilter === 'Tous' ? files : files.filter(f => f.category === currentFileFilter);
+  const grid = document.getElementById('files-grid');
+  grid.innerHTML = filtered.map((f, i) => {
+    const author = getEmploye(f.author) || employes[0];
+    const dir = getDirection(f.dir) || directions[0];
+    return `<div class="bg-white rounded-2xl p-5 card-hover slide-in" style="animation-delay: ${i * 60}ms">
+      <div class="flex items-start gap-3">
+        <div class="w-11 h-11 rounded-xl bg-surface flex items-center justify-center flex-shrink-0">
+          <i class="fas ${getFileIcon(f.type)} text-lg"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-ink truncate" title="${esc(f.name)}">${esc(f.name)}</p>
+          <p class="text-xs text-muted mt-0.5">${esc(f.size)} — ${esc(f.date)}</p>
+        </div>
+        <button class="w-8 h-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted transition-colors flex-shrink-0">
+          <i class="fas fa-ellipsis-vertical text-xs"></i>
+        </button>
+      </div>
+      <div class="mt-3 pt-3 border-t border-border/60 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <img src="${getUserImg(author.img, 24)}" class="w-5 h-5 rounded-full object-cover" alt="">
+          <span class="text-[11px] text-muted">${esc(author.name?.split(' ')[0])}</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full" style="background: ${dir.color}15; color: ${dir.color}">${esc(dir.abbr)}</span>
+        </div>
+        <span class="text-[10px] text-muted"><i class="fas fa-download mr-1"></i>${f.downloads}</span>
+      </div>
+      <button onclick="downloadFile(${f.id})" class="mt-3 w-full py-2 bg-surface hover:bg-primary-light text-primary rounded-lg text-xs font-medium transition-colors">
+        <i class="fas fa-download mr-1.5"></i>Télécharger
+      </button>
+    </div>`;
+  }).join('');
+
+  // Drop zone events
+  const dropZone = document.getElementById('drop-zone');
+  if (dropZone) {
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+    dropZone.ondrop = (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleRealFileUpload({ files: e.dataTransfer.files });
+      }
+    };
+  }
+}
+
+function filterFiles(category) {
+  currentFileFilter = category;
+  renderFiles();
+}
+
+function showUploadModal() {
+  document.getElementById('modal-title').textContent = 'Importer des fichiers (Sauvegarde BDD)';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="space-y-4">
+      <div class="drop-zone rounded-xl p-8 text-center cursor-pointer relative hover:border-primary transition-colors" id="modal-drop-zone" onclick="document.getElementById('real-file-input').click()">
+        <i class="fas fa-cloud-arrow-up text-3xl text-primary mb-2"></i>
+        <p class="text-sm font-semibold text-ink">Glissez vos fichiers ici ou cliquez pour parcourir</p>
+        <p class="text-xs text-muted mt-1">PDF, DOCX, XLSX, images — Enregistré en BDD</p>
+        <input type="file" id="real-file-input" onchange="handleRealFileUpload(this)" class="hidden">
+      </div>
+      <div>
+        <label class="text-sm font-medium text-ink block mb-1.5">Direction</label>
+        <select id="modal-upload-dir" class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+          ${directions.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-sm font-medium text-ink block mb-1.5">Description (optionnel)</label>
+        <textarea rows="2" placeholder="Ajoutez une description..." class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm resize-none"></textarea>
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="closeModal()" class="px-5 py-2.5 bg-surface text-muted rounded-xl text-sm font-medium hover:bg-border transition-colors">Annuler</button>
+        <button onclick="document.getElementById('real-file-input').click()" class="px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors">Parcourir et Importer</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+// ----- Envoi de fichiers : Vercel Blob via l'API, métadonnées seulement en base -----
+const MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024;
+
+async function getAccessToken() {
+  const client = await getAuthClient();
+  const { data: { session } } = client ? await client.auth.getSession() : { data: { session: null } };
+  return session?.access_token || '';
+}
+
+async function uploadAttachmentFile(file, userId) {
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error('fichier trop volumineux (maximum 4,5 Mo).');
+  const token = await getAccessToken();
+  const response = await apiFetch('/api/upload-attachment', {
+    method: 'POST',
+    headers: { 'X-File-Name': encodeURIComponent(file.name), 'X-User-Id': String(userId), 'Content-Type': file.type || 'application/octet-stream', Authorization: `Bearer ${token}` },
+    body: file
+  });
+  const result = await readApiJson(response);
+  if (!response.ok) throw new Error(result.error || result.message || 'envoi refusé par le serveur.');
+  return result;
+}
+
+function resizeImage(dataUrl, maxSize = 512) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    image.onerror = () => reject(new Error('image illisible.'));
+    image.src = dataUrl;
+  });
+}
+
+async function uploadProfileImage(dataUrl, userId) {
+  const resized = await resizeImage(dataUrl);
+  const token = await getAccessToken();
+  const response = await apiFetch('/api/upload-profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ userId, dataUrl: resized })
+  });
+  const result = await readApiJson(response);
+  if (!response.ok) throw new Error(result.error || result.message || 'envoi refusé par le serveur.');
+  return result.path;
+}
+
+async function handleRealFileUpload(inputElement) {
+  const filesList = inputElement.files;
+  if (!filesList || filesList.length === 0) return;
+
+  const file = filesList[0];
+  const extension = file.name.split('.').pop().toLowerCase();
+
+  let type = 'pdf';
+  if (['xls', 'xlsx', 'csv'].includes(extension)) type = 'excel';
+  else if (['doc', 'docx'].includes(extension)) type = 'word';
+  else if (['zip', 'rar', '7z'].includes(extension)) type = 'archive';
+  else if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(extension)) type = 'image';
+
+  const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+  const formattedSize = file.size > 1024 * 1024 ? sizeMb + ' Mo' : Math.round(file.size / 1024) + ' Ko';
+  const me = getEmploye(currentUserId) || employes[0];
+
+  try {
+    const uploaded = await withLoader('Envoi du fichier…', () => uploadAttachmentFile(file, me.id));
+    const newFileObj = {
+      id: newRecordId(),
+      name: file.name,
+      type: type,
+      size: formattedSize,
+      dir: me.dir || 1,
+      author: me.id,
+      date: new Date().toISOString().split('T')[0],
+      downloads: 0,
+      category: getDirection(me.dir)?.abbr || 'Général',
+      fileUrl: uploaded.path
+    };
+
+    files.unshift(newFileObj);
+    if (!await persistCollection('files', [newFileObj], { quiet: true })) {
+      files.shift();
+      showToast(`Le fichier « ${file.name} » n’a pas pu être enregistré dans la base de données.`, 'error');
+      return;
+    }
+
+    activities.unshift({
+      user: me.id,
+      action: 'a partagé le fichier',
+      target: file.name,
+      time: 'À l\'instant',
+      icon: 'fa-file-arrow-up',
+      color: '#2563EB'
+    });
+    persistCollection('activities', [activities[0]]);
+    renderAdminDashboard();
+    renderFiles();
+    closeModal();
+    showToast(`Fichier "${file.name}" importé et partagé.`);
+  } catch (error) {
+    showToast(`Import impossible : ${error.message}`, 'error');
+  }
+}
+
+function downloadFile(id) {
+  const file = files.find(f => f.id === id);
+  if (!file) return;
+
+  // Les anciens fichiers stockés en base (dataUrl) restent téléchargeables.
+  const url = file.fileUrl ? safeUrl(file.fileUrl) : file.dataUrl;
+  if (!url || url === '#') {
+    showToast(`« ${file.name} » n’a pas de contenu disponible.`, 'error');
+    return;
+  }
+
+  file.downloads = (file.downloads || 0) + 1;
+  persistCollection('files', [file]);
+  renderAdminDashboard();
+  renderFiles();
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast(`Téléchargement de ${file.name} démarré...`);
+}
+
+// ============================================================
+// RÉUNIONS & VISIO
+// ============================================================
+
+function renderMeetings() {
+  updateDashboardStats();
+  document.querySelectorAll('.meeting-tab').forEach(t => {
+    t.classList.toggle('tab-active', t.dataset.tab === currentMeetingTab);
+    if (t.dataset.tab !== currentMeetingTab) t.classList.add('text-muted');
+    else t.classList.remove('text-muted');
+  });
+
+  const content = document.getElementById('meetings-content');
+
+  if (currentMeetingTab === 'upcoming') {
+    const upcoming = meetings.filter(m => m.status === 'upcoming');
+    content.innerHTML = upcoming.map((m, i) => {
+      const org = getEmploye(m.organizer) || employes[0] || { name: 'Utilisateur' };
+      const typeLabel = m.type === 'visio' ? 'Visioconférence' : m.type === 'hybride' ? 'Hybride' : 'Présentiel';
+      const typeStyle = m.type === 'visio' ? 'bg-blue-50 text-blue-600' : m.type === 'hybride' ? 'bg-purple-50 text-purple-600' : 'bg-green-50 text-green-600';
+      return `<div class="bg-white rounded-2xl p-5 card-hover slide-in" style="animation-delay: ${i * 80}ms">
+        <div class="flex items-start gap-4">
+          <div class="w-14 h-14 rounded-xl bg-primary-light flex flex-col items-center justify-center flex-shrink-0">
+            <span class="text-lg font-bold text-primary leading-none">${esc(new Date(m.date).getDate())}</span>
+            <span class="text-[10px] text-primary/70 uppercase">${new Date(m.date).toLocaleDateString('fr-FR', { month: 'short' })}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-1">
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-medium ${typeStyle}"><i class="fas ${m.type === 'visio' ? 'fa-video' : 'fa-location-dot'} mr-1"></i>${typeLabel}</span>
+              ${m.room ? `<span class="text-[10px] text-muted"><i class="fas fa-door-open mr-1"></i>${esc(m.room)}</span>` : ''}
+            </div>
+            <h4 class="text-sm font-semibold text-ink">${esc(m.title)}</h4>
+            <p class="text-xs text-muted mt-1"><i class="fas fa-clock mr-1"></i>${esc(m.time)} — ${esc(m.duration)} &nbsp;|&nbsp; <i class="fas fa-user mr-1"></i>${esc(org.name)} &nbsp;|&nbsp; <i class="fas fa-users mr-1"></i>${m.participants.length} participants</p>
+            <div class="flex items-center mt-2 -space-x-2">
+              ${m.participants.slice(0, 5).map(p => `<img src="${getUserImg(getEmploye(p).img, 28)}" class="w-7 h-7 rounded-full border-2 border-white object-cover" title="${esc(getEmploye(p).name)}">`).join('')}
+              ${m.participants.length > 5 ? `<span class="w-7 h-7 rounded-full bg-surface border-2 border-white flex items-center justify-center text-[10px] font-medium text-muted">+${m.participants.length - 5}</span>` : ''}
+            </div>
+          </div>
+          <div class="flex flex-col gap-2 flex-shrink-0">
+            ${m.join_code ? `<button onclick="joinMeetingById(${m.id})" class="px-4 py-2 bg-primary text-white rounded-xl text-xs font-medium hover:bg-primary-dark transition-colors"><i class="fas fa-video mr-1.5"></i>Rejoindre</button>
+              <button onclick="copyMeetingLink(${m.id})" class="px-4 py-2 bg-surface text-muted rounded-xl text-xs font-medium hover:bg-border transition-colors" title="Copier le lien d’invitation"><i class="fas fa-link mr-1.5"></i>Lien</button>` : ''}
+            <button class="px-4 py-2 bg-surface text-muted rounded-xl text-xs font-medium hover:bg-border transition-colors"><i class="fas fa-pen mr-1.5"></i>Modifier</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else if (currentMeetingTab === 'past') {
+    const past = meetings.filter(m => m.status === 'past');
+    content.innerHTML = past.map((m, i) => {
+      const org = getEmploye(m.organizer) || employes[0] || { name: 'Utilisateur' };
+      return `<div class="bg-white rounded-2xl p-5 card-hover opacity-75 slide-in" style="animation-delay: ${i * 80}ms">
+        <div class="flex items-start gap-4">
+          <div class="w-14 h-14 rounded-xl bg-gray-100 flex flex-col items-center justify-center flex-shrink-0">
+            <span class="text-lg font-bold text-muted leading-none">${esc(new Date(m.date).getDate())}</span>
+            <span class="text-[10px] text-muted/70 uppercase">${new Date(m.date).toLocaleDateString('fr-FR', { month: 'short' })}</span>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-sm font-semibold text-ink">${esc(m.title)}</h4>
+            <p class="text-xs text-muted mt-1">${esc(m.time)} — ${esc(m.duration)} | Par ${esc(org.name)}</p>
+          </div>
+          <button class="px-4 py-2 bg-surface text-muted rounded-xl text-xs font-medium hover:bg-border transition-colors"><i class="fas fa-file-lines mr-1.5"></i>Compte-rendu</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else if (currentMeetingTab === 'visio') {
+    content.innerHTML = `
+      <div class="bg-white rounded-2xl p-8 text-center">
+        <div class="w-20 h-20 rounded-2xl bg-surface flex items-center justify-center mx-auto mb-4">
+          <i class="fas fa-video-slash text-2xl text-muted"></i>
+        </div>
+        <h3 class="font-semibold text-ink">Aucune visioconférence en cours</h3>
+        <p class="text-sm text-muted mt-1 max-w-md mx-auto">Démarrez une nouvelle visioconférence ou rejoignez une réunion programmée.</p>
+        <button onclick="startVisio()" class="mt-5 bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-xl text-sm font-medium transition-colors">
+          <i class="fas fa-video mr-2"></i>Démarrer une visioconférence
+        </button>
+      </div>`;
+  }
+}
+
+function switchMeetingTab(tab) {
+  currentMeetingTab = tab;
+  renderMeetings();
+}
+
+function showNewMeetingModal() {
+  document.getElementById('modal-title').textContent = 'Planifier une réunion (Sauvegarde BDD)';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="space-y-4">
+      <div>
+        <label class="text-sm font-medium text-ink block mb-1.5">Titre de la réunion <span class="text-red-500">*</span></label>
+        <input type="text" id="new-meeting-title" placeholder="Ex: Comité de pilotage projet X" class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm font-medium text-ink block mb-1.5">Date <span class="text-red-500">*</span></label>
+          <input type="date" id="new-meeting-date" value="${new Date().toISOString().split('T')[0]}" class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="text-sm font-medium text-ink block mb-1.5">Heure <span class="text-red-500">*</span></label>
+          <input type="time" id="new-meeting-time" value="10:00" class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm font-medium text-ink block mb-1.5">Durée</label>
+          <select id="new-meeting-duration" class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+            <option>30 min</option><option>45 min</option><option selected>1h</option><option>1h30</option><option>2h</option><option>3h</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-ink block mb-1.5">Type</label>
+          <select id="new-meeting-type" class="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm">
+            <option value="visio">Visioconférence</option>
+            <option value="presentiel">Présentiel</option>
+            <option value="hybride">Hybride</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-sm font-medium text-ink block mb-1.5">Participants</label>
+        <div class="max-h-40 overflow-y-auto bg-surface rounded-xl p-3 space-y-1">
+          ${employes.filter(e => e.id !== (currentUserId || 1)).map(e => `<label class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white cursor-pointer transition-colors">
+            <input type="checkbox" class="accent-primary meeting-part-check" value="${e.id}" checked>
+            <img src="${getUserImg(e.img, 24)}" class="w-5 h-5 rounded-full object-cover">
+            <span class="text-xs text-ink font-medium">${esc(e.name)} — ${esc(e.role)}</span>
+          </label>`).join('')}
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="closeModal()" class="px-5 py-2.5 bg-surface text-muted rounded-xl text-sm font-medium hover:bg-border transition-colors">Annuler</button>
+        <button onclick="createNewMeetingFromModal()" class="px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors">Planifier en BDD</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+async function createNewMeetingFromModal() {
+  const title = document.getElementById('new-meeting-title')?.value?.trim();
+  const date = document.getElementById('new-meeting-date')?.value;
+  const time = document.getElementById('new-meeting-time')?.value;
+  const duration = document.getElementById('new-meeting-duration')?.value;
+  const type = document.getElementById('new-meeting-type')?.value;
+
+  if (!title || !date || !time) {
+    showToast('Veuillez renseigner le titre, la date et l\'heure.', 'error');
+    return;
+  }
+
+  const me = getEmploye(currentUserId) || employes[0];
+  const checkedParts = Array.from(document.querySelectorAll('.meeting-part-check:checked')).map(c => parseInt(c.value));
+  if (!checkedParts.includes(me.id)) checkedParts.push(me.id);
+
+  const newMeeting = {
+    id: Date.now(),
+    title: title,
+    date: date,
+    time: time,
+    duration: duration || '1h',
+    organizer: me.id,
+    participants: checkedParts,
+    type: type || 'visio',
+    room: type === 'presentiel' ? 'Salle de Conférence' : type === 'hybride' ? 'Salle B + Visio' : '',
+    status: 'upcoming',
+    join_code: type === 'presentiel' ? null : generateJoinCode(),
+    expires_at: type === 'presentiel' ? null : meetingExpiry(date)
+  };
+
+  meetings.unshift(newMeeting);
+  if (!await persistCollection('meetings', [newMeeting], { quiet: true })) {
+    meetings.shift();
+    showToast('La réunion n’a pas pu être enregistrée dans la base de données.', 'error');
+    return;
+  }
+
+  activities.unshift({
+    user: me.id,
+    action: 'a planifié une réunion',
+    target: title,
+    time: 'À l\'instant',
+    icon: 'fa-calendar-plus',
+    color: '#DC2626'
+  });
+  persistCollection('activities', [activities[0]]);
+
+  renderMeetings();
+  renderCalendar();
+  closeModal();
+  showToast(`Réunion "${title}" planifiée et sauvegardée dans la base !`);
+}
+
+// ============================================================
+// VIDÉOCONFÉRENCE
+// ============================================================
+
+// ============================================================
+// VISIOCONFÉRENCE — groupe jusqu'à 6 personnes, par lien d'invitation
+// Signalisation : Supabase Realtime (canal par réunion, présence des participants).
+// Médias : WebRTC maillé ; TURN Cloudflare fourni par /api/ice-servers.
+// ============================================================
+
+const VISIO_MAX_PARTICIPANTS = 6;
+
+const visio = {
+  meeting: null,
+  channel: null,
+  selfKey: null,
+  stream: null,
+  peers: new Map(),
+  pendingIce: new Map(),
+  names: new Map(),
+  iceServers: null,
+  timer: null,
+  startedAt: 0,
+  micOn: true,
+  camOn: true,
+  warned: false
+};
+
+let pendingJoinCode = new URLSearchParams(location.search).get('join');
+
+function generateJoinCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+}
+
+function localIsoDate(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// Le lien expire le lendemain de la journée de la réunion (ou 24 h après une réunion immédiate).
+function meetingExpiry(dateStr) {
+  const base = dateStr ? new Date(`${dateStr}T23:59:00`) : new Date();
+  return new Date(base.getTime() + 24 * 3600 * 1000).toISOString();
+}
+
+function visioInviteLink(meeting) {
+  return `${location.origin}${location.pathname}?join=${encodeURIComponent(meeting.join_code)}`;
+}
+
+async function copyText(text, successMessage) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(successMessage);
+  } catch (error) {
+    showToast('Copie impossible. Lien : ' + text, 'info');
+  }
+}
+
+function copyMeetingLink(meetingId) {
+  const meeting = meetings.find(m => m.id === meetingId);
+  if (!meeting || !meeting.join_code) return showToast('Cette réunion n’a pas de lien d’invitation.', 'error');
+  return copyText(visioInviteLink(meeting), 'Lien d’invitation copié.');
+}
+
+async function loadIceServers() {
+  const fallback = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+  try {
+    const token = await getAccessToken();
+    const response = await apiFetch('/api/ice-servers', { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) return fallback;
+    const data = await readApiJson(response);
+    return Array.isArray(data.iceServers) && data.iceServers.length ? data.iceServers : fallback;
+  } catch (error) {
+    console.warn('Serveurs TURN indisponibles, connexion directe seulement :', error.message);
+    return fallback;
+  }
+}
+
+async function acquireLocalMedia() {
+  const attempts = [{ video: true, audio: true }, { audio: true }];
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+      console.warn('Média indisponible :', error.message);
+    }
+  }
+  showToast('Caméra et micro inaccessibles : vous rejoignez en écoute seule. Vérifiez les autorisations du navigateur.', 'info');
+  return null;
+}
+
+function tileId(key) {
+  return key === 'self' ? 'tile-self' : 'tile-' + String(key).replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function updateVisioLayout() {
+  const grid = document.getElementById('visio-grid');
+  if (!grid) return;
+  const count = grid.children.length;
+  grid.style.gridTemplateColumns = `repeat(${count <= 1 ? 1 : count <= 4 ? 2 : 3}, minmax(0, 1fr))`;
+  const counter = document.getElementById('visio-count');
+  if (counter) counter.textContent = `${count} participant${count > 1 ? 's' : ''}`;
+}
+
+function addVisioTile(key, name, stream) {
+  const grid = document.getElementById('visio-grid');
+  if (!grid) return;
+  let tile = document.getElementById(tileId(key));
+  if (!tile) {
+    tile = document.createElement('div');
+    tile.id = tileId(key);
+    tile.className = 'relative aspect-video bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center';
+    tile.innerHTML = `<video autoplay playsinline ${key === 'self' ? 'muted' : ''} class="absolute inset-0 w-full h-full object-cover"></video>
+      <span class="absolute bottom-3 left-3 z-10 bg-black/50 text-white text-xs px-2.5 py-1 rounded-lg">${esc(name)}</span>`;
+    grid.appendChild(tile);
+  }
+  const video = tile.querySelector('video');
+  if (stream && video.srcObject !== stream) video.srcObject = stream;
+  updateVisioLayout();
+}
+
+function removeVisioTile(key) {
+  document.getElementById(tileId(key))?.remove();
+  updateVisioLayout();
+}
+
+function renderVisioShell(meeting) {
+  document.getElementById('visio-content').innerHTML = `
+    <div class="h-14 bg-black/80 backdrop-blur flex items-center px-5 gap-4 z-20 relative">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
+        <span class="text-white text-sm font-medium">En réunion</span>
+        <span class="text-white/50 text-xs" id="visio-timer">00:00</span>
+      </div>
+      <div class="flex-1 text-center"><span class="text-white/70 text-xs">${esc(meeting.title)}</span></div>
+      <span class="text-white/60 text-xs" id="visio-count"></span>
+    </div>
+    <div class="flex-1 p-4 grid gap-4 auto-rows-fr overflow-auto content-center" id="visio-grid"></div>
+    <div class="h-20 bg-black/90 backdrop-blur flex items-center justify-center gap-3 z-20 relative">
+      <button id="visio-mic" onclick="toggleMic()" class="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors" title="Micro"><i class="fas fa-microphone"></i></button>
+      <button id="visio-cam" onclick="toggleCam()" class="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors" title="Caméra"><i class="fas fa-video"></i></button>
+      <button onclick="copyMeetingLink(${meeting.id})" class="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors" title="Copier le lien d’invitation"><i class="fas fa-link"></i></button>
+      <div class="w-px h-8 bg-white/20 mx-2"></div>
+      <button onclick="endVisio()" class="w-14 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-colors" title="Quitter"><i class="fas fa-phone-slash"></i></button>
+    </div>`;
+}
+
+function setVisioButton(id, on, iconOn, iconOff) {
+  const button = document.getElementById(id);
+  if (!button) return;
+  button.querySelector('i').className = `fas ${on ? iconOn : iconOff}`;
+  button.classList.toggle('bg-red-500/30', !on);
+  button.classList.toggle('bg-white/10', on);
+}
+
+function toggleMic() {
+  if (!visio.stream) return;
+  visio.micOn = !visio.micOn;
+  visio.stream.getAudioTracks().forEach(track => { track.enabled = visio.micOn; });
+  setVisioButton('visio-mic', visio.micOn, 'fa-microphone', 'fa-microphone-slash');
+}
+
+function toggleCam() {
+  if (!visio.stream) return;
+  visio.camOn = !visio.camOn;
+  visio.stream.getVideoTracks().forEach(track => { track.enabled = visio.camOn; });
+  setVisioButton('visio-cam', visio.camOn, 'fa-video', 'fa-video-slash');
+}
+
+function startVisioTimer() {
+  clearInterval(visio.timer);
+  visio.startedAt = Date.now();
+  visio.timer = setInterval(() => {
+    const seconds = Math.floor((Date.now() - visio.startedAt) / 1000);
+    const el = document.getElementById('visio-timer');
+    if (el) el.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  }, 1000);
+}
+
+function sendVisioSignal(to, body) {
+  if (!visio.channel) return;
+  visio.channel.send({ type: 'broadcast', event: 'signal', payload: { from: visio.selfKey, to, ...body } });
+}
+
+function dropVisioPeer(key) {
+  visio.peers.get(key)?.close();
+  visio.peers.delete(key);
+  visio.pendingIce.delete(key);
+  visio.names.delete(key);
+  removeVisioTile(key);
+}
+
+function createVisioPeer(key) {
+  const pc = new RTCPeerConnection({ iceServers: visio.iceServers });
+  visio.peers.set(key, pc);
+  if (visio.stream) {
+    visio.stream.getTracks().forEach(track => pc.addTrack(track, visio.stream));
+  } else {
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+    pc.addTransceiver('video', { direction: 'recvonly' });
+  }
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) sendVisioSignal(key, { kind: 'ice', candidate });
+  };
+  pc.ontrack = (event) => {
+    const stream = event.streams[0] || new MediaStream([event.track]);
+    addVisioTile(key, visio.names.get(key) || 'Participant', stream);
+  };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed') {
+      showToast(`Connexion avec ${visio.names.get(key) || 'un participant'} interrompue (réseau trop restrictif).`, 'error');
+    }
+  };
+  return pc;
+}
+
+async function offerToVisioPeer(key) {
+  const pc = visio.peers.get(key) || createVisioPeer(key);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  sendVisioSignal(key, { kind: 'offer', sdp: { type: offer.type, sdp: offer.sdp } });
+}
+
+async function flushVisioIce(key) {
+  const pc = visio.peers.get(key);
+  const queued = visio.pendingIce.get(key) || [];
+  visio.pendingIce.delete(key);
+  for (const candidate of queued) await pc.addIceCandidate(candidate).catch(() => {});
+}
+
+async function handleVisioSignal(payload) {
+  if (!payload || payload.to !== visio.selfKey || payload.from === visio.selfKey) return;
+  const key = payload.from;
+  try {
+    if (payload.kind === 'offer') {
+      const pc = visio.peers.get(key) || createVisioPeer(key);
+      await pc.setRemoteDescription(payload.sdp);
+      await flushVisioIce(key);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendVisioSignal(key, { kind: 'answer', sdp: { type: answer.type, sdp: answer.sdp } });
+    } else if (payload.kind === 'answer') {
+      const pc = visio.peers.get(key);
+      if (!pc) return;
+      await pc.setRemoteDescription(payload.sdp);
+      await flushVisioIce(key);
+    } else if (payload.kind === 'ice') {
+      const pc = visio.peers.get(key);
+      if (pc && pc.remoteDescription) {
+        await pc.addIceCandidate(payload.candidate);
+      } else {
+        if (!visio.pendingIce.has(key)) visio.pendingIce.set(key, []);
+        visio.pendingIce.get(key).push(payload.candidate);
+      }
+    }
+  } catch (error) {
+    console.warn('Signalisation visio :', error.message);
+  }
+}
+
+// Qui est dans la salle : chacun se connecte à ceux dont la clé est « plus grande »,
+// ce qui évite que deux personnes envoient une offre en même temps.
+function onVisioPresenceSync() {
+  if (!visio.channel) return;
+  const state = visio.channel.presenceState();
+  const remote = new Map();
+  for (const [key, entries] of Object.entries(state)) {
+    if (key !== visio.selfKey && entries.length) remote.set(key, entries[0]);
+  }
+
+  for (const key of [...visio.peers.keys()]) {
+    if (!remote.has(key)) dropVisioPeer(key);
+  }
+  for (const key of [...visio.names.keys()]) {
+    if (!remote.has(key)) removeVisioTile(key);
+  }
+
+  for (const [key, info] of remote) {
+    visio.names.set(key, info.name || 'Participant');
+    addVisioTile(key, visio.names.get(key), null);
+    if (!visio.peers.has(key) && visio.selfKey < key) offerToVisioPeer(key);
+  }
+
+  const total = remote.size + 1;
+  if (total > VISIO_MAX_PARTICIPANTS && !visio.warned) {
+    visio.warned = true;
+    showToast(`Cette réunion dépasse ${VISIO_MAX_PARTICIPANTS} participants : la qualité peut baisser.`, 'info');
+  }
+  updateVisioLayout();
+}
+
+async function openVisio(meeting) {
+  if (visioActive) await endVisio({ silent: true });
+  const me = getEmploye(currentUserId);
+  if (!me) return showToast('Connectez-vous pour rejoindre la réunion.', 'error');
+
+  visio.meeting = meeting;
+  visio.selfKey = `${me.id}:${Math.random().toString(36).slice(2, 10)}`;
+  visio.peers = new Map();
+  visio.pendingIce = new Map();
+  visio.names = new Map();
+  visio.micOn = true;
+  visio.camOn = true;
+  visio.warned = false;
+  visioActive = true;
+
+  document.getElementById('visio-modal').classList.remove('hidden');
+  renderVisioShell(meeting);
+  visio.stream = await acquireLocalMedia();
+  addVisioTile('self', 'Moi', visio.stream);
+  visio.iceServers = await loadIceServers();
+
+  const client = await getAuthClient();
+  if (!client) {
+    showToast('Le service de visioconférence est indisponible.', 'error');
+    return endVisio({ silent: true });
+  }
+
+  const channel = client.channel(`cud-meeting-${meeting.join_code}`, {
+    config: { broadcast: { self: false }, presence: { key: visio.selfKey } }
+  });
+  visio.channel = channel;
+  channel
+    .on('broadcast', { event: 'signal' }, ({ payload }) => handleVisioSignal(payload))
+    .on('presence', { event: 'sync' }, () => onVisioPresenceSync());
+  channel.subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') {
+      await channel.track({ id: me.id, name: me.name });
+      startVisioTimer();
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      showToast('La connexion temps réel à la réunion a échoué. Vérifiez votre réseau.', 'error');
+    }
+  });
+}
+
+async function endVisio(options = {}) {
+  if (!visioActive && !visio.channel) return;
+  clearInterval(visio.timer);
+  visio.timer = null;
+  for (const pc of visio.peers.values()) pc.close();
+  visio.peers.clear();
+  visio.pendingIce.clear();
+  visio.names.clear();
+  if (visio.stream) visio.stream.getTracks().forEach(track => track.stop());
+  visio.stream = null;
+
+  const channel = visio.channel;
+  visio.channel = null;
+  if (channel) {
+    try { await channel.untrack(); } catch (error) { /* déjà déconnecté */ }
+    const client = await getAuthClient();
+    if (client) client.removeChannel(channel);
+  }
+
+  visioActive = false;
+  visio.meeting = null;
+  document.getElementById('visio-modal').classList.add('hidden');
+  document.getElementById('visio-content').innerHTML = '';
+  if (!options.silent) showToast('Visioconférence terminée');
+}
+
+async function createMeetingRecord({ title, type, participants }) {
+  const me = getEmploye(currentUserId);
+  if (!me) return null;
+  const now = new Date();
+  const meeting = {
+    id: newRecordId(),
+    title,
+    date: localIsoDate(now),
+    time: currentTimeLabel(),
+    duration: '1h',
+    organizer: me.id,
+    participants,
+    type,
+    room: '',
+    status: 'upcoming',
+    join_code: generateJoinCode(),
+    expires_at: meetingExpiry(null)
+  };
+  meetings.unshift(meeting);
+  if (!await persistCollection('meetings', [meeting])) {
+    meetings.shift();
+    return null;
+  }
+  renderMeetings();
+  renderCalendar();
+  return meeting;
+}
+
+async function startVisio() {
+  const me = getEmploye(currentUserId);
+  if (!me) return;
+  const meeting = await createMeetingRecord({ title: `Visioconférence de ${me.name}`, type: 'visio', participants: [me.id] });
+  if (meeting) await openVisio(meeting);
+}
+
+async function joinMeetingById(id) {
+  const meeting = meetings.find(m => m.id === id);
+  if (!meeting) return showToast('Réunion introuvable.', 'error');
+  if (!meeting.join_code) return showToast('Cette réunion n’a pas de salle visio.', 'error');
+  if (meeting.expires_at && new Date(meeting.expires_at) < new Date()) return showToast('Cette réunion a expiré.', 'error');
+  await openVisio(meeting);
+}
+
+async function joinMeetingByCode(code) {
+  const rows = await fetchCollection('meetings');
+  const meeting = rows.find(m => m.join_code === code);
+  if (!meeting) return showToast('Ce lien de réunion est introuvable.', 'error');
+  if (!meetings.some(m => m.id === meeting.id)) meetings.push(meeting);
+  await joinMeetingById(meeting.id);
+}
+
+// Ouverture d'un lien ?join=CODE : demandé une fois, après la connexion.
+async function maybeJoinFromLink() {
+  if (!pendingJoinCode || !currentUserId) return;
+  const code = pendingJoinCode;
+  pendingJoinCode = null;
+  history.replaceState(null, '', location.pathname);
+  await joinMeetingByCode(code);
+}
+
+function initiateAudioCall(userId) {
+  const user = getEmploye(userId);
+  if (!user) return;
+  const me = getEmploye(currentUserId);
+  if (user.id === me?.id) return showToast('Vous ne pouvez pas vous appeler vous-même.', 'error');
+  showToast(`Appel audio vers ${user.name} lancé.`, 'info');
+  openConversationWith(user.id);
+}
+
+async function startVisioWith(userId) {
+  const me = getEmploye(currentUserId);
+  const other = getEmploye(userId);
+  if (!me || !other) return;
+  if (other.id === me.id) return showToast('Vous ne pouvez pas démarrer une visio avec vous-même.', 'error');
+  openConversationWith(other.id);
+  const meeting = await createMeetingRecord({
+    title: `Appel : ${me.name} et ${other.name}`,
+    type: 'visio',
+    participants: [me.id, other.id]
+  });
+  if (meeting) await openVisio(meeting);
+}
+
+function showCreateModal() {
+  document.getElementById('modal-title').textContent = 'Créer un nouveau contenu';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="grid grid-cols-2 gap-3">
+      <button onclick="closeModal(); showNewTopicModal()" class="p-5 bg-surface rounded-xl hover:bg-primary-light transition-colors text-left group">
+        <div class="w-10 h-10 rounded-xl bg-primary-light flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors">
+          <i class="fas fa-comments text-primary group-hover:text-white transition-colors"></i>
+        </div>
+        <p class="text-sm font-semibold text-ink">Sujet de discussion</p>
+        <p class="text-xs text-muted mt-0.5">Lancer un débat thématique</p>
+      </button>
+      <button onclick="closeModal(); showUploadModal()" class="p-5 bg-surface rounded-xl hover:bg-primary-light transition-colors text-left group">
+        <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors">
+          <i class="fas fa-file-arrow-up text-blue-600 group-hover:text-white transition-colors"></i>
+        </div>
+        <p class="text-sm font-semibold text-ink">Partager un fichier</p>
+        <p class="text-xs text-muted mt-0.5">Importer un document</p>
+      </button>
+      <button onclick="closeModal(); showNewMeetingModal()" class="p-5 bg-surface rounded-xl hover:bg-primary-light transition-colors text-left group">
+        <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors">
+          <i class="fas fa-calendar-plus text-purple-600 group-hover:text-white transition-colors"></i>
+        </div>
+        <p class="text-sm font-semibold text-ink">Planifier une réunion</p>
+        <p class="text-xs text-muted mt-0.5">Présentiel ou visio</p>
+      </button>
+      <button onclick="closeModal(); startVisio()" class="p-5 bg-surface rounded-xl hover:bg-primary-light transition-colors text-left group">
+        <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors">
+          <i class="fas fa-video text-green-600 group-hover:text-white transition-colors"></i>
+        </div>
+        <p class="text-sm font-semibold text-ink">Démarrer une visio</p>
+        <p class="text-xs text-muted mt-0.5">Vidéoconférence immédiate</p>
+      </button>
+    </div>`;
+  openModal();
+}
+
+// ============================================================
+// CALENDRIER
+// ============================================================
+
+let calendarCursor = new Date();
+
+function changeCalendarMonth(delta) {
+  calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + delta, 1);
+  renderCalendar();
+}
+
+// Les dates des réunions sont au format AAAA-MM-JJ : on les lit sans passer par UTC.
+function meetingParts(meeting) {
+  const [y, m, d] = String(meeting.date || '').split('-').map(Number);
+  return { year: y, month: (m || 1) - 1, day: d };
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calendar-grid');
+  if (!grid) return;
+  const year = calendarCursor.getFullYear();
+  const month = calendarCursor.getMonth();
+  const today = new Date();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const adjustedFirst = (new Date(year, month, 1).getDay() + 6) % 7;
+  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  const monthMeetings = meetings
+    .filter(m => { const p = meetingParts(m); return p.year === year && p.month === month; })
+    .sort((a, b) => meetingParts(a).day - meetingParts(b).day || String(a.time).localeCompare(String(b.time)));
+  const eventDays = new Set(monthMeetings.map(m => meetingParts(m).day));
+
+  let html = `<div class="flex items-center justify-between mb-5">
+    <h3 class="font-semibold text-ink text-lg">${monthNames[month]} ${year}</h3>
+    <div class="flex gap-2">
+      <button onclick="changeCalendarMonth(-1)" class="w-8 h-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted transition-colors" title="Mois précédent"><i class="fas fa-chevron-left text-xs"></i></button>
+      <button onclick="changeCalendarMonth(1)" class="w-8 h-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted transition-colors" title="Mois suivant"><i class="fas fa-chevron-right text-xs"></i></button>
+    </div>
+  </div>`;
+
+  html += '<div class="grid grid-cols-7 gap-1">';
+  dayNames.forEach(d => { html += `<div class="text-center text-xs font-medium text-muted py-2">${d}</div>`; });
+  for (let i = 0; i < adjustedFirst; i++) html += '<div></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+    const hasEvent = eventDays.has(d);
+    html += `<div class="aspect-square flex flex-col items-center justify-center rounded-xl transition-colors ${isToday ? 'bg-primary text-white' : 'hover:bg-surface'}">
+      <span class="text-sm ${isToday ? 'font-bold' : ''}">${d}</span>
+      ${hasEvent ? `<span class="w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-accent'} mt-0.5"></span>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+
+  if (monthMeetings.length > 0) {
+    html += '<div class="mt-5 pt-5 border-t border-border"><h4 class="text-sm font-semibold text-ink mb-3">Réunions du mois</h4>';
+    html += monthMeetings.map(m => `<div class="flex items-center gap-3 p-3 rounded-xl bg-surface mb-2">
+      <span class="text-xs font-mono text-primary font-medium w-16">${meetingParts(m).day}/${month + 1} ${esc(m.time)}</span>
+      <div class="w-0.5 h-8 bg-primary rounded-full"></div>
+      <div class="flex-1"><p class="text-sm font-medium text-ink">${esc(m.title)}</p><p class="text-xs text-muted">${esc(m.duration)} — ${(m.participants || []).length} participants</p></div>
+    </div>`).join('');
+    html += '</div>';
+  }
+
+  grid.innerHTML = html;
+}
+
+// ============================================================
+// ANNUAIRE
+// ============================================================
+
+function copyEmail(button) {
+  const email = button?.dataset?.email || '';
+  if (!email) return;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(email).then(
+      () => showToast('Email copié : ' + email),
+      () => showToast('Copie impossible. Email : ' + email, 'info')
+    );
+  } else {
+    showToast('Email : ' + email, 'info');
+  }
+}
+
+function renderDirectory() {
+  // Remplir le filtre direction
+  const filter = document.getElementById('dir-filter');
+  if (filter.options.length <= 1) {
+    directions.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.name;
+      filter.appendChild(opt);
+    });
+  }
+  filterDirectory();
+}
+
+function filterDirectory() {
+  const search = (document.getElementById('dir-search')?.value || '').toLowerCase();
+  const dirFilter = document.getElementById('dir-filter')?.value || '';
+  const grid = document.getElementById('directory-grid');
+
+  let filtered = employes;
+  if (search) filtered = filtered.filter(e => e.name.toLowerCase().includes(search) || e.role.toLowerCase().includes(search));
+  if (dirFilter) filtered = filtered.filter(e => e.dir === parseInt(dirFilter));
+
+  grid.innerHTML = filtered.map((e, i) => {
+    const dir = getDirection(e.dir);
+    return `<div class="bg-white rounded-2xl p-5 card-hover text-center slide-in" style="animation-delay: ${i * 40}ms">
+      <div class="relative inline-block">
+        <img src="${getUserImg(e.img, 96)}" class="w-16 h-16 rounded-full object-cover mx-auto" alt="${esc(e.name)}">
+        ${e.online ? '<span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white"></span>' : ''}
+      </div>
+      <h4 class="text-sm font-semibold text-ink mt-3">${esc(e.name)}</h4>
+      <p class="text-xs text-muted mt-0.5">${esc(e.role)}</p>
+      <span class="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium mt-2" style="background: ${dir.color}15; color: ${dir.color}">${esc(dir.name)}</span>
+      <div class="mt-3 pt-3 border-t border-border/60 flex justify-center gap-2">
+        <button onclick="openConversationWith(${e.id})" class="w-8 h-8 rounded-lg bg-surface hover:bg-primary-light hover:text-primary flex items-center justify-center text-muted transition-colors" title="Envoyer un message"><i class="fas fa-message text-xs"></i></button>
+        <button onclick="initiateAudioCall(${e.id})" class="w-8 h-8 rounded-lg bg-surface hover:bg-primary-light hover:text-primary flex items-center justify-center text-muted transition-colors" title="Appeler"><i class="fas fa-phone text-xs"></i></button>
+        <button onclick="startVisioWith(${e.id})" class="w-8 h-8 rounded-lg bg-surface hover:bg-blue-50 hover:text-blue-600 flex items-center justify-center text-muted transition-colors" title="Visioconférence"><i class="fas fa-video text-xs"></i></button>
+        <button data-email="${esc(e.email)}" onclick="copyEmail(this)" class="w-8 h-8 rounded-lg bg-surface hover:bg-accent-light hover:text-accent flex items-center justify-center text-muted transition-colors" title="Copier l'email"><i class="fas fa-envelope text-xs"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// DIRECTIONS
+// ============================================================
+
+function renderDirections() {
+  const grid = document.getElementById('directions-grid');
+  grid.innerHTML = directions.map((d, i) => {
+    const members = employes.filter(e => e.dir === d.id).sort((a, b) => {
+      const aHead = a.id === d.head || /directeur|directrice|chef/i.test(a.role || '');
+      const bHead = b.id === d.head || /directeur|directrice|chef/i.test(b.role || '');
+      return Number(bHead) - Number(aHead) || (a.name || '').localeCompare(b.name || '');
+    });
+    const head = members[0];
+    return `<div class="bg-white rounded-2xl p-6 card-hover slide-in" style="animation-delay: ${i * 80}ms">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center" style="background: ${d.color}15"><i class="fas ${d.icon} text-xl" style="color: ${d.color}"></i></div>
+        <div><h3 class="font-semibold text-ink">${esc(d.name)}</h3><p class="text-xs text-muted">${esc(d.abbr)} — ${members.length} agent${members.length > 1 ? 's' : ''}</p></div>
+      </div>
+      ${head ? `<div class="flex items-center gap-3 p-3 bg-primary-light rounded-xl mb-3 border-l-4" style="border-color: ${d.color}"><img src="${getUserImg(head.img, 40)}" class="w-9 h-9 rounded-full object-cover" alt="${esc(head.name)}"><div><p class="text-xs font-bold text-ink">${esc(head.name)}</p><p class="text-[10px] text-primary">${esc(head.role)}</p></div></div>` : '<p class="text-xs text-muted py-3">Aucun compte enregistré dans cette direction.</p>'}
+      <div class="relative ml-4 pl-5 border-l-2 border-border space-y-2">
+        ${members.slice(1).map(m => `<div class="relative flex items-center gap-2 py-1.5"><span class="absolute -left-[26px] w-4 border-t-2 border-border"></span><img src="${getUserImg(m.img, 28)}" class="w-7 h-7 rounded-full object-cover" alt="${esc(m.name)}"><div class="min-w-0"><p class="text-xs font-medium text-ink truncate">${esc(m.name)}</p><p class="text-[10px] text-muted truncate">${esc(m.role || 'Fonction non renseignée')}</p></div></div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+function renderNotifications() {
+  const list = document.getElementById('notif-list');
+  const iconMap = { reply: 'fa-reply text-primary', meeting: 'fa-calendar text-blue-500', file: 'fa-file-arrow-up text-amber-500', message: 'fa-message text-green-500', system: 'fa-info-circle text-muted' };
+  list.innerHTML = notifications.map(n => `
+    <div class="flex items-start gap-3 p-4 border-b border-border/50 hover:bg-surface transition-colors ${n.read ? 'opacity-60' : ''}">
+      <div class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center flex-shrink-0 mt-0.5">
+        <i class="fas ${iconMap[n.type]} text-xs"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-ink leading-snug">${esc(n.text)}</p>
+        <p class="text-[11px] text-muted mt-1">${esc(n.time)}</p>
+      </div>
+      ${!n.read ? '<span class="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2"></span>' : ''}
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+
+function openModal() {
+  document.getElementById('create-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('create-modal').classList.add('hidden');
+}
+
+// ============================================================
+// ============================================================
+// AUTHENTIFICATION & GESTION DES COMPTES (PAGE D'ACCUEIL)
+// ============================================================
+
+function toggleUserDropdown() {
+  const dd = document.getElementById('user-dropdown');
+  if (dd) dd.classList.toggle('hidden');
+}
+
+function showAuthLandingPage() {
+  const landing = document.getElementById('auth-landing-page');
+  const mainApp = document.getElementById('main-app-layout');
+  if (landing && mainApp) {
+    landing.classList.remove('hidden');
+    mainApp.classList.add('hidden');
+  }
+
+  // Remplir le select de connexion rapide
+  const quickSelect = document.getElementById('landing-quick-select');
+  if (quickSelect) {
+    quickSelect.innerHTML = '<option value="">-- Sélectionner un compte --</option>' +
+      employes.map(e => `<option value="${e.id}">${esc(e.name)} (${esc(e.role)} — ${esc(getDirection(e.dir)?.abbr || '')})</option>`).join('');
+  }
+
+  // Remplir le select des directions
+  const regDir = document.getElementById('landing-reg-direction');
+  if (regDir) {
+    regDir.innerHTML = directions.length
+      ? '<option value="">Sélectionner une direction</option>' + directions.map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.abbr)})</option>`).join('')
+      : '<option value="">Aucune direction disponible. Ajoutez les directions dans Supabase.</option>';
+    regDir.disabled = directions.length === 0;
+  }
+
+  const registerButton = document.querySelector('#landing-form-register button[onclick="registerLandingAccount()"]');
+  if (registerButton) {
+    registerButton.disabled = directions.length === 0;
+    registerButton.classList.toggle('opacity-50', directions.length === 0);
+    registerButton.classList.toggle('cursor-not-allowed', directions.length === 0);
+  }
+}
+
+function switchLandingTab(tab) {
+  const tabLogin = document.getElementById('landing-tab-login');
+  const tabReg = document.getElementById('landing-tab-register');
+  const formLogin = document.getElementById('landing-form-login');
+  const formReg = document.getElementById('landing-form-register');
+
+  if (tab === 'login') {
+    tabLogin.className = 'flex-1 py-2.5 rounded-lg transition-all bg-white text-primary font-semibold shadow-md';
+    tabReg.className = 'flex-1 py-2.5 rounded-lg transition-all text-white/80 hover:text-white';
+    formLogin.classList.remove('hidden');
+    formReg.classList.add('hidden');
+  } else {
+    tabReg.className = 'flex-1 py-2.5 rounded-lg transition-all bg-white text-primary font-semibold shadow-md';
+    tabLogin.className = 'flex-1 py-2.5 rounded-lg transition-all text-white/80 hover:text-white';
+    formReg.classList.remove('hidden');
+    formLogin.classList.add('hidden');
+  }
+}
+
+function enterPlatform(userId) {
+  currentUserId = parseInt(userId);
+
+  const landing = document.getElementById('auth-landing-page');
+  const mainApp = document.getElementById('main-app-layout');
+
+  if (landing) landing.classList.add('hidden');
+  if (mainApp) mainApp.classList.remove('hidden');
+
+  updateUserProfileUI();
+  updateAdminVisibility();
+  renderDashboard();
+
+  const user = getEmploye(currentUserId);
+  showToast(`Bienvenue sur CUD Collab, ${user ? user.name : 'Utilisateur'} !`);
+  maybeJoinFromLink();
+}
+
+function updateAdminVisibility() {
+  const user = getEmploye(currentUserId);
+  const isAdmin = user && user.isAdmin === true;
+  const adminBtn = document.getElementById('sidebar-admin-btn');
+  if (adminBtn) adminBtn.style.display = isAdmin ? '' : 'none';
+}
+
+function quickSelectUser(id) {
+  if (id) showToast('Connectez-vous avec votre adresse email et votre mot de passe.', 'info');
+}
+
+async function authenticateWithSupabase(email, password, adminOnly = false) {
+  const client = await getAuthClient();
+  if (!client) {
+    showToast('Supabase Auth est indisponible. Vérifiez la configuration du serveur.', 'error');
+    return;
+  }
+
+  let data;
+  try {
+    const result = await client.auth.signInWithPassword({ email, password });
+    if (result.error) {
+      const invalidCredentials = result.error.message?.toLowerCase().includes('invalid login credentials');
+      showToast(invalidCredentials ? 'Email ou mot de passe incorrect.' : result.error.message || 'Connexion impossible.', 'error');
+      return;
+    }
+    data = result.data;
+  } catch (error) {
+    showToast(`La connexion a échoué : ${error.message}`, 'error');
+    return;
+  }
+
+  try {
+    await loadAppData();
+  } catch (error) {
+    await client.auth.signOut();
+    showToast(`Impossible de charger votre profil : ${error.message}`, 'error');
+    return;
+  }
+
+  if (!data?.user) {
+    showToast('Supabase n’a pas retourné de compte authentifié.', 'error');
+    return;
+  }
+
+  const profile = employes.find(user => user.email?.toLowerCase() === data.user.email?.toLowerCase());
+  if (!profile || (adminOnly && profile.isAdmin !== true)) {
+    await client.auth.signOut();
+    showToast(profile ? 'Ce compte ne dispose pas des droits administrateur.' : 'Aucun profil CUD ne correspond à ce compte.', 'error');
+    return;
+  }
+
+  const loginPassword = document.getElementById('landing-login-password');
+  if (loginPassword) loginPassword.value = '';
+  enterPlatform(profile.id);
+  if (adminOnly) {
+    closeAdminLoginModal();
+    switchView('admin');
+  }
+}
+
+function registerLandingAccount() {
+  return withLoader('Création du compte…', registerLandingAccountCore);
+}
+
+function loginWithLandingCredentials() {
+  const emailInput = document.getElementById('landing-login-email')?.value?.trim()?.toLowerCase();
+  const password = document.getElementById('landing-login-password')?.value;
+  if (!emailInput || !password) {
+    showToast('Veuillez saisir votre adresse email et votre mot de passe.', 'error');
+    return;
+  }
+  return withLoader('Connexion en cours…', () => authenticateWithSupabase(emailInput, password));
+}
+
+async function registerLandingAccountCore() {
+  const name = document.getElementById('landing-reg-name')?.value?.trim();
+  const role = document.getElementById('landing-reg-role')?.value?.trim();
+  const dirId = parseInt(document.getElementById('landing-reg-direction')?.value);
+  const email = document.getElementById('landing-reg-email')?.value?.trim();
+  const pass = document.getElementById('landing-reg-password')?.value;
+  const passConf = document.getElementById('landing-reg-password-confirm')?.value;
+
+  if (!name || !role || !dirId || !email || !pass) {
+    showToast('Veuillez remplir tous les champs obligatoires (*).', 'error');
+    return;
+  }
+
+  if (pass !== passConf) {
+    showToast('Les mots de passe ne correspondent pas.', 'error');
+    return;
+  }
+
+  const client = await getAuthClient();
+  if (!client) {
+    showToast('Supabase Auth est indisponible. Vérifiez la configuration du serveur.', 'error');
+    return;
+  }
+
+  const { data, error } = await client.auth.signUp({
+    email: email.toLowerCase(),
+    password: pass,
+    options: { data: { name, role, dir: dirId } }
+  });
+  if (error) {
+    showToast(error.message, 'error');
+    return;
+  }
+
+  if (!data.session) {
+    document.getElementById('landing-reg-password').value = '';
+    document.getElementById('landing-reg-password-confirm').value = '';
+    currentRegisterAvatarDataUrl = null;
+    switchLandingTab('login');
+    showToast('Compte Auth créé. Confirmez votre adresse email, puis connectez-vous pour créer le profil.', 'info');
+    return;
+  }
+
+  let profile = employes.find(user => user.email?.toLowerCase() === email.toLowerCase());
+  if (!profile) {
+    const registerAvatarUrl = currentRegisterAvatarDataUrl
+      ? await uploadProfileImage(currentRegisterAvatarDataUrl, Date.now()).catch(() => {
+          showToast('Le compte est créé, mais la photo n’a pas pu être envoyée.', 'info');
+          return '';
+        })
+      : '';
+    profile = {
+      id: Date.now(),
+      name,
+      role,
+      dir: dirId,
+      email: email.toLowerCase(),
+      img: registerAvatarUrl,
+      online: false
+    };
+    if (!await persistCollection('users', [profile], { quiet: true })) {
+      if (data.session) await client.auth.signOut();
+      showToast('Le compte Auth existe, mais son profil n’a pas pu être enregistré. Vérifiez les politiques RLS de la table users.', 'error');
+      return;
+    }
+    employes.push(profile);
+  }
+
+  document.getElementById('landing-reg-password').value = '';
+  document.getElementById('landing-reg-password-confirm').value = '';
+  currentRegisterAvatarDataUrl = null;
+  enterPlatform(profile.id);
+}
+
+async function logoutUser() {
+  const client = await getAuthClient();
+  if (client) await client.auth.signOut();
+  currentUserId = null;
+  const dd = document.getElementById('user-dropdown');
+  if (dd) dd.classList.add('hidden');
+  showToast('Vous avez été déconnecté.', 'info');
+  showAuthLandingPage();
+}
+
+function showAuthModal(tab = 'login') {
+  showAuthLandingPage();
+  switchLandingTab(tab);
+}
+
+function updateUserProfileUI() {
+  if (!currentUserId) return;
+  const me = getEmploye(currentUserId) || employes[0];
+  if (!me) return;
+  const dir = getDirection(me.dir);
+
+  const avatarEl = document.getElementById('user-avatar');
+  const nameEl = document.getElementById('user-name');
+  const dirEl = document.getElementById('user-direction');
+  const headerBtnEl = document.getElementById('header-user-btn');
+
+  if (avatarEl) avatarEl.src = getUserImg(me.img, 80);
+  if (nameEl) nameEl.textContent = me.name;
+  if (dirEl) dirEl.textContent = dir ? dir.name : 'Direction';
+  if (headerBtnEl) headerBtnEl.textContent = me.name.split(' ')[0];
+
+  if (currentView === 'directory') renderDirectory();
+  if (currentView === 'dashboard') renderDashboard();
+
+  updateAdminVisibility();
+}
+
+// ============================================================
+// ADMINISTRATION & CONTRÔLE DE LA PLATEFORME
+// ============================================================
+
+let currentProfileAvatarDataUrl = null;
+
+function previewProfileAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = event => {
+    currentProfileAvatarDataUrl = event.target.result;
+    const preview = document.getElementById('profile-avatar-preview');
+    if (preview) preview.src = currentProfileAvatarDataUrl;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function openMyProfileModal() {
+  const me = getEmploye(currentUserId);
+  if (!me) return;
+  document.getElementById('user-dropdown')?.classList.add('hidden');
+  currentProfileAvatarDataUrl = me.img || null;
+  document.getElementById('modal-title').textContent = 'Modifier mon profil';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="space-y-4">
+      <div class="flex items-center gap-3">
+        <img id="profile-avatar-preview" src="${getUserImg(me.img, 80)}" class="w-16 h-16 rounded-full object-cover border-2 border-primary-light">
+        <div><label class="text-xs font-semibold text-ink block mb-1">Photo de profil</label><input type="file" accept="image/*" onchange="previewProfileAvatar(this)" class="w-full text-xs text-muted"></div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-ink block mb-1">Nom et prénom *</label>
+        <input id="profile-name" value="${esc(me.name || '')}" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-ink block mb-1">Poste / Fonction *</label>
+        <input id="profile-role" value="${esc(me.role || '')}" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-ink block mb-1">Direction *</label>
+        <select id="profile-dir" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+          ${directions.map(d => `<option value="${d.id}" ${d.id === me.dir ? 'selected' : ''}>${esc(d.name)} (${esc(d.abbr)})</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-ink block mb-1">Email professionnel *</label>
+        <input type="email" id="profile-email" value="${esc(me.email || '')}" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-ink block mb-1">Téléphone</label>
+        <input id="profile-tel" value="${esc(me.tel || '')}" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="closeModal()" class="px-4 py-2.5 bg-surface text-muted rounded-xl text-xs font-medium">Annuler</button>
+        <button onclick="saveMyProfile()" class="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-bold">Enregistrer</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+async function saveMyProfile() {
+  const me = getEmploye(currentUserId);
+  if (!me) return;
+  const name = document.getElementById('profile-name')?.value.trim();
+  const role = document.getElementById('profile-role')?.value.trim();
+  const email = document.getElementById('profile-email')?.value.trim();
+  const dir = parseInt(document.getElementById('profile-dir')?.value);
+  const tel = document.getElementById('profile-tel')?.value.trim();
+  if (!name || !role || !email || !dir) {
+    showToast('Veuillez remplir tous les champs obligatoires.', 'error');
+    return;
+  }
+  const duplicate = employes.some(e => e.id !== me.id && e.email?.toLowerCase() === email.toLowerCase());
+  if (duplicate) {
+    showToast('Cette adresse email est déjà utilisée.', 'error');
+    return;
+  }
+  let avatarPath = me.img;
+  if (currentProfileAvatarDataUrl && currentProfileAvatarDataUrl.startsWith('data:image/')) {
+    try {
+      avatarPath = await uploadProfileImage(currentProfileAvatarDataUrl, me.id);
+    } catch (error) {
+      showToast('La photo n’a pas pu être envoyée : ' + error.message, 'error');
+      return;
+    }
+  }
+  const updatedUser = { ...me, name, role, email, dir, tel, img: avatarPath };
+  if (!await persistCollection('users', [updatedUser], { quiet: true })) {
+    showToast('Le profil n’a pas pu être enregistré dans la base de données.', 'error');
+    return;
+  }
+  Object.assign(me, updatedUser);
+  updateUserProfileUI();
+  if (currentView === 'admin') renderAdminUsersTable();
+  renderAdminDashboard();
+  closeModal();
+  showToast('Votre profil a été mis à jour avec succès.');
+}
+
+function openAdminLoginModal() {
+  const modal = document.getElementById('admin-login-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeAdminLoginModal() {
+  const modal = document.getElementById('admin-login-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function authenticateAdmin() {
+  const email = document.getElementById('admin-login-user')?.value?.trim()?.toLowerCase();
+  const password = document.getElementById('admin-login-pass')?.value;
+  if (!email || !password) {
+    showToast('Saisissez l’adresse email et le mot de passe administrateur.', 'error');
+    return;
+  }
+  return withLoader('Connexion administrateur…', () => authenticateWithSupabase(email, password, true));
+}
+
+function renderAdminDashboard() {
+  const kpiUsers = document.getElementById('admin-kpi-users');
+  if (kpiUsers) kpiUsers.textContent = employes.length;
+  const kpiStorage = document.getElementById('admin-kpi-storage');
+  if (kpiStorage) {
+    const totalMb = files.reduce((sum, file) => sum + (parseFloat(String(file.size).replace(',', '.')) || 0), 0);
+    kpiStorage.textContent = `${totalMb.toFixed(1)} Mo`;
+    const storageLabel = document.getElementById('admin-kpi-storage-label');
+    if (storageLabel) storageLabel.textContent = `${totalMb.toFixed(1)} Mo utilisés`;
+  }
+  const kpiDirections = document.getElementById('admin-kpi-directions');
+  if (kpiDirections) kpiDirections.textContent = `${directions.length} Directions`;
+  const kpiAlerts = document.getElementById('admin-kpi-alerts');
+  if (kpiAlerts) kpiAlerts.textContent = `${notifications.filter(n => !n.read).length} Alerte${notifications.filter(n => !n.read).length > 1 ? 's' : ''}`;
+
+  const barsContainer = document.getElementById('admin-direction-bars');
+  if (barsContainer) {
+    barsContainer.innerHTML = directions.map(d => {
+      const count = employes.filter(e => e.dir === d.id).length;
+      const percentage = Math.min(100, Math.round((count / Math.max(1, employes.length)) * 250));
+      return `
+        <div>
+          <div class="flex items-center justify-between text-xs font-semibold mb-1">
+            <span class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background: ${d.color}"></span>
+              ${esc(d.name)} (${esc(d.abbr)})
+            </span>
+            <span class="text-muted">${count} agents | ${percentage}% activité</span>
+          </div>
+          <div class="w-full bg-surface h-3 rounded-full overflow-hidden border border-border/50">
+            <div class="h-full rounded-full transition-all duration-1000" style="width: ${percentage}%; background: ${d.color}"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  renderAdminUsersTable();
+  renderAdminDirections();
+}
+
+let currentRegisterAvatarDataUrl = null;
+
+function previewRegisterAvatar(input, previewImgId) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentRegisterAvatarDataUrl = e.target.result;
+    const previewEl = document.getElementById(previewImgId);
+    if (previewEl) previewEl.src = e.target.result;
+    showToast('Photo de profil sélectionnée avec succès !');
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderAdminDirections() {
+  const grid = document.getElementById('admin-directions-grid');
+  if (!grid) return;
+
+  grid.innerHTML = directions.map(d => {
+    const count = employes.filter(e => e.dir === d.id).length;
+    const headObj = employes.find(e => e.id === d.head || (e.role && e.role.includes('Directeur') && e.dir === d.id));
+
+    return `
+      <div class="bg-surface rounded-2xl p-4 border border-border relative flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div>
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-sm" style="background: ${d.color}">
+              <i class="fas ${d.icon} text-sm"></i>
+            </div>
+            <div class="flex gap-1">
+              <button onclick="openDirectionModal(${d.id})" class="w-7 h-7 rounded-lg bg-white border border-border hover:bg-primary-light hover:text-primary flex items-center justify-center text-muted text-xs transition-colors" title="Modifier la direction">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button onclick="deleteDirection(${d.id})" class="w-7 h-7 rounded-lg bg-white border border-border hover:bg-red-50 hover:text-red-600 flex items-center justify-center text-muted text-xs transition-colors" title="Supprimer la direction">
+                <i class="fas fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+          <h4 class="font-bold text-ink text-sm leading-snug">${esc(d.name)}</h4>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold mt-1" style="background: ${d.color}20; color: ${d.color}">${esc(d.abbr)} — ${count} agents</span>
+          ${headObj ? `<p class="text-[11px] text-muted mt-2 truncate"><i class="fas fa-user-tie mr-1"></i>${esc(headObj.name)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openDirectionModal(dirId = null) {
+  const dir = dirId ? directions.find(d => d.id === dirId) : null;
+  
+  document.getElementById('modal-title').textContent = dir ? `Modifier : ${dir.name}` : 'Créer une nouvelle Direction';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-semibold text-ink block mb-1">Nom complet de la Direction <span class="text-red-500">*</span></label>
+        <input type="text" id="dir-modal-name" value="${esc(dir ? dir.name : '')}" placeholder="ex: Direction des Projets Spéciaux" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Abréviation / Sigle <span class="text-red-500">*</span></label>
+          <input type="text" id="dir-modal-abbr" value="${esc(dir ? dir.abbr : '')}" placeholder="ex: DPS" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Couleur d'identification</label>
+          <input type="color" id="dir-modal-color" value="${dir ? dir.color : '#004d72'}" class="w-full h-10 p-1 bg-surface border border-border rounded-xl cursor-pointer">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Icône (FontAwesome)</label>
+          <select id="dir-modal-icon" class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm">
+            <option value="fa-building" ${dir && dir.icon === 'fa-building' ? 'selected' : ''}>🏢 Bâtiment (fa-building)</option>
+            <option value="fa-chart-line" ${dir && dir.icon === 'fa-chart-line' ? 'selected' : ''}>📈 Stratégie (fa-chart-line)</option>
+            <option value="fa-road" ${dir && dir.icon === 'fa-road' ? 'selected' : ''}>🛣️ Travaux (fa-road)</option>
+            <option value="fa-coins" ${dir && dir.icon === 'fa-coins' ? 'selected' : ''}>🪙 Finances (fa-coins)</option>
+            <option value="fa-city" ${dir && dir.icon === 'fa-city' ? 'selected' : ''}>🏙️ Urbanisme (fa-city)</option>
+            <option value="fa-leaf" ${dir && dir.icon === 'fa-leaf' ? 'selected' : ''}>🍃 Environnement (fa-leaf)</option>
+            <option value="fa-user-tie" ${dir && dir.icon === 'fa-user-tie' ? 'selected' : ''}>👔 RH (fa-user-tie)</option>
+            <option value="fa-bullhorn" ${dir && dir.icon === 'fa-bullhorn' ? 'selected' : ''}>📢 Communication (fa-bullhorn)</option>
+            <option value="fa-microchip" ${dir && dir.icon === 'fa-microchip' ? 'selected' : ''}>💻 Numérique (fa-microchip)</option>
+            <option value="fa-shield-halved" ${dir && dir.icon === 'fa-shield-halved' ? 'selected' : ''}>🛡️ Sécurité (fa-shield-halved)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-ink block mb-1">Chef de Direction</label>
+          <select id="dir-modal-head" class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm">
+            <option value="">-- Aucun --</option>
+            ${employes.map(e => `<option value="${e.id}" ${esc(dir && (dir.head === e.id || dir.head === e.name) ? 'selected' : '')}>${esc(e.name)} (${esc(e.role)})</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3">
+        <button onclick="closeModal()" class="px-4 py-2 bg-surface text-muted rounded-xl text-xs font-medium">Annuler</button>
+        <button onclick="saveDirectionFromModal(${dirId || 'null'})" class="px-5 py-2.5 bg-primary hover:bg-primary text-white rounded-xl text-xs font-bold shadow-md">
+          <i class="fas fa-check mr-1"></i> ${dir ? 'Mettre à jour' : 'Créer la Direction'}
+        </button>
+      </div>
+    </div>
+  `;
+  openModal();
+}
+
+async function saveDirectionFromModal(dirId) {
+  const name = document.getElementById('dir-modal-name')?.value?.trim();
+  const abbr = document.getElementById('dir-modal-abbr')?.value?.trim();
+  const color = document.getElementById('dir-modal-color')?.value;
+  const icon = document.getElementById('dir-modal-icon')?.value;
+  const head = document.getElementById('dir-modal-head')?.value;
+
+  if (!name || !abbr) {
+    showToast('Veuillez saisir le nom complet et l\'abréviation de la Direction.', 'error');
+    return;
+  }
+
+  if (dirId) {
+    const dir = directions.find(d => d.id === dirId);
+    if (dir) {
+      dir.name = name;
+      dir.abbr = abbr;
+      dir.color = color;
+      dir.icon = icon;
+      dir.head = head ? Number(head) : null;
+    }
+  } else {
+    const newDir = {
+      id: Date.now(),
+      name: name,
+      abbr: abbr,
+      color: color || '#004d72',
+      icon: icon || 'fa-building',
+      members: 0,
+      head: head ? Number(head) : null
+    };
+    directions.push(newDir);
+  }
+
+  const saved = dirId ? directions.find(d => d.id === dirId) : directions[directions.length - 1];
+  if (!await persistCollection('directions', [saved], { quiet: true })) {
+    if (!dirId) directions.pop();
+    showToast('La direction n’a pas pu être enregistrée dans la base de données.', 'error');
+    return;
+  }
+
+  updateDirectionSelects();
+
+  renderAdminDashboard();
+  if (currentView === 'directions') renderDirections();
+  closeModal();
+  showToast(`Direction "${name}" ${dirId ? 'mise à jour' : 'créée'} avec succès !`);
+}
+
+async function deleteDirection(dirId) {
+  const dir = directions.find(d => d.id === dirId);
+  if (!dir) return;
+
+  const count = employes.filter(e => e.dir === dirId).length;
+  const msg = count > 0 
+    ? `Attention : ${count} agent(s) sont enregistrés dans la direction "${dir.name}". Êtes-vous sûr de vouloir supprimer cette direction ?`
+    : `Êtes-vous sûr de vouloir supprimer définitivement la direction "${dir.name}" ?`;
+
+  if (confirm(msg)) {
+    if (!await deleteCollectionRecord('directions', dirId)) return;
+    const idx = directions.findIndex(d => d.id === dirId);
+    if (idx !== -1) directions.splice(idx, 1);
+
+    updateDirectionSelects();
+    renderAdminDashboard();
+    if (currentView === 'directions') renderDirections();
+    showToast(`Direction "${dir.name}" supprimée de la plateforme.`, 'info');
+  }
+}
+
+function openAdminUserEditModal(userId) {
+  const user = getEmploye(userId);
+  if (!user) return;
+  document.getElementById('modal-title').textContent = `Modifier le compte : ${user.name}`;
+  document.getElementById('modal-body').innerHTML = `<div class="space-y-4">
+    <input id="admin-edit-name" value="${esc(user.name || '')}" placeholder="Nom et prénom" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+    <input id="admin-edit-role" value="${esc(user.role || '')}" placeholder="Poste / fonction" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+    <select id="admin-edit-dir" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">${directions.map(d => `<option value="${d.id}" ${d.id === user.dir ? 'selected' : ''}>${esc(d.name)} (${esc(d.abbr)})</option>`).join('')}</select>
+    <input type="email" id="admin-edit-email" value="${esc(user.email || '')}" placeholder="Email professionnel" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+    <input id="admin-edit-tel" value="${esc(user.tel || '')}" placeholder="Téléphone" class="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-sm">
+    <div class="flex justify-end gap-3"><button onclick="closeModal()" class="px-4 py-2 bg-surface text-muted rounded-xl text-xs">Annuler</button><button onclick="saveAdminUserEdit(${userId})" class="px-5 py-2 bg-primary text-white rounded-xl text-xs font-bold">Enregistrer</button></div>
+  </div>`;
+  openModal();
+}
+
+async function saveAdminUserEdit(userId) {
+  const user = getEmploye(userId);
+  if (!user) return;
+  const name = document.getElementById('admin-edit-name')?.value.trim();
+  const role = document.getElementById('admin-edit-role')?.value.trim();
+  const email = document.getElementById('admin-edit-email')?.value.trim();
+  const dir = parseInt(document.getElementById('admin-edit-dir')?.value);
+  const tel = document.getElementById('admin-edit-tel')?.value.trim();
+  if (!name || !role || !email || !dir) return showToast('Veuillez remplir les champs obligatoires.', 'error');
+  if (employes.some(e => e.id !== userId && e.email?.toLowerCase() === email.toLowerCase())) return showToast('Cette adresse email est déjà utilisée.', 'error');
+  const updatedUser = { ...user, name, role, email, dir, tel };
+  if (!await persistCollection('users', [updatedUser], { quiet: true })) {
+    showToast('Le compte n’a pas pu être enregistré dans la base de données.', 'error');
+    return;
+  }
+  Object.assign(user, updatedUser);
+  renderAdminDashboard();
+  updateUserProfileUI();
+  closeModal();
+  showToast(`Le compte de ${user.name} a été modifié.`);
+}
+
+// Supprime chaque ligne en base ; renvoie celles qui n'ont pas pu être supprimées.
+async function deleteRecords(table, records) {
+  const failed = [];
+  for (const record of records) {
+    if (!await deleteCollectionRecord(table, record.id, { quiet: true })) failed.push(record);
+  }
+  if (failed.length) showToast(`${failed.length} élément(s) n’ont pas pu être supprimés (${TABLE_LABELS[table] || table}).`, 'error');
+  return failed;
+}
+
+async function resetAdminDataBlock(block) {
+  const labels = { forums: 'Forums thématiques', messages: 'Messagerie', meetings: 'Réunions & Visio', calendar: 'Calendrier' };
+  if (!labels[block] || !confirm(`Supprimer définitivement toutes les données du bloc « ${labels[block]} » ?`)) return;
+
+  if (block === 'forums') {
+    topics.splice(0, topics.length, ...await deleteRecords('topics', topics));
+    renderForums();
+  } else if (block === 'messages') {
+    const rows = Object.values(chatHistory).flat().filter(m => m && m.id);
+    await deleteRecords('chat_history', rows);
+    conversations.splice(0, conversations.length, ...await deleteRecords('conversations', conversations));
+    Object.keys(chatHistory).forEach(key => {
+      if (!conversations.some(c => String(c.id) === key)) delete chatHistory[key];
+    });
+    renderMessages();
+  } else {
+    meetings.splice(0, meetings.length, ...await deleteRecords('meetings', meetings));
+    renderMeetings();
+    renderCalendar();
+  }
+  renderAdminDashboard();
+  updateSidebarBadges();
+  showToast(`${labels[block]} vidé avec succès.`, 'info');
+}
+
+async function resetFileSharingData() {
+  if (!confirm('Réinitialiser toutes les données de partage de fichiers ? Tous les fichiers et informations partagés seront définitivement supprimés.')) return;
+
+  files.splice(0, files.length, ...await deleteRecords('files', files));
+
+  const shareActivities = activities.filter(a => a.action === 'a partagé le fichier');
+  await deleteRecords('activities', shareActivities);
+  activities.splice(0, activities.length, ...activities.filter(a => a.action !== 'a partagé le fichier'));
+
+  const fileNotifications = notifications.filter(n => n.type === 'file');
+  await deleteRecords('notifications', fileNotifications);
+  notifications.splice(0, notifications.length, ...notifications.filter(n => n.type !== 'file'));
+
+  currentFileFilter = 'Tous';
+  renderFiles();
+  renderAdminDashboard();
+  showToast('Toutes les données de partage ont été supprimées.', 'info');
+}
+
+function updateDirectionSelects() {
+  ['reg-direction', 'landing-reg-direction'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) {
+      sel.innerHTML = directions.map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.abbr)})</option>`).join('');
+    }
+  });
+}
+
+function renderAdminUsersTable() {
+  const tbody = document.getElementById('admin-users-tbody');
+  if (!tbody) return;
+
+  const search = (document.getElementById('admin-user-search')?.value || '').toLowerCase();
+  let list = employes;
+
+  if (search) {
+    list = list.filter(e => e.name.toLowerCase().includes(search) || e.email.toLowerCase().includes(search) || e.role.toLowerCase().includes(search));
+  }
+
+  tbody.innerHTML = list.map(e => {
+    const dir = getDirection(e.dir);
+    const isSuspended = e.suspended === true;
+
+    return `
+      <tr class="hover:bg-surface/70 transition-colors">
+        <td class="p-3">
+          <div class="flex items-center gap-2.5">
+            <img src="${getUserImg(e.img, 32)}" class="w-8 h-8 rounded-full object-cover border border-border" alt="${esc(e.name)}">
+            <div>
+              <p class="font-semibold text-ink leading-snug">${esc(e.name)} ${e.isAdmin ? '<span class="text-[9px] bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded font-bold ml-1">ADMIN</span>' : ''}</p>
+              <p class="text-[10px] text-muted">${esc(e.tel || '')}</p>
+            </div>
+          </div>
+        </td>
+        <td class="p-3 font-medium text-ink">${esc(e.role)}</td>
+        <td class="p-3">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold" style="background: ${dir?.color || '#004d72'}15; color: ${dir?.color || '#004d72'}">${esc(dir?.abbr || 'DG')}</span>
+        </td>
+        <td class="p-3 text-muted font-mono text-[11px]">${esc(e.email)}</td>
+        <td class="p-3">
+          ${isSuspended
+            ? '<span class="bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full text-[10px] font-bold">Suspendu</span>'
+            : '<span class="bg-primary-light text-primary border border-primary px-2 py-0.5 rounded-full text-[10px] font-bold">Actif</span>'
+          }
+        </td>
+        <td class="p-3 text-right">
+          ${e.id === 999 ? '<span class="text-xs text-muted italic">Compte Principal</span>' : `
+            <div class="flex items-center justify-end gap-1.5">
+              <button onclick="openAdminUserEditModal(${e.id})" class="px-2 py-1 bg-primary-light hover:bg-primary-light text-primary rounded-lg text-[11px] font-medium border border-primary transition-colors" title="Modifier le compte">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button onclick="toggleUserStatus(${e.id})" class="px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${isSuspended ? 'bg-primary-light text-primary border-primary hover:bg-primary-light' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}">
+                <i class="fas ${isSuspended ? 'fa-user-check' : 'fa-user-slash'} mr-1"></i> ${isSuspended ? 'Activer' : 'Suspendre'}
+              </button>
+              <button onclick="deleteUserAccount(${e.id})" class="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-[11px] font-medium border border-red-200 transition-colors" title="Supprimer le compte">
+                <i class="fas fa-trash-can"></i>
+              </button>
+            </div>
+          `}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function toggleUserStatus(userId) {
+  const user = getEmploye(userId);
+  if (!user) return;
+  const updatedUser = { ...user, suspended: !user.suspended, online: user.suspended };
+  if (!await persistCollection('users', [updatedUser], { quiet: true })) {
+    showToast('Le statut n’a pas pu être enregistré dans la base de données.', 'error');
+    return;
+  }
+  Object.assign(user, updatedUser);
+  renderAdminUsersTable();
+  showToast(`Le compte de ${user.name} a été ${user.suspended ? 'suspendu' : 'réactivé'}.`, user.suspended ? 'info' : 'success');
+}
+
+async function deleteUserAccount(userId) {
+  const user = getEmploye(userId);
+  if (!user) return;
+  if (!confirm(`Êtes-vous sûr de vouloir supprimer définitivement le compte de ${user.name} ?`)) return;
+  if (!await deleteCollectionRecord('users', userId)) return;
+  const index = employes.findIndex(e => e.id === userId);
+  if (index !== -1) employes.splice(index, 1);
+  renderAdminUsersTable();
+  renderAdminDashboard();
+  showToast(`Compte de ${user.name} supprimé avec succès.`, 'info');
+}
+
+function broadcastSystemAlert() {
+  const alertMsg = prompt("Entrez le message d'alerte générale à diffuser à toutes les directions :");
+  if (alertMsg && alertMsg.trim()) {
+    notifications.unshift({
+      id: Date.now(),
+      type: 'system',
+      text: `📢 ALERTE DIRECTION GENERALE : ${alertMsg.trim()}`,
+      time: 'À l\'instant',
+      read: false
+    });
+    persistCollection('notifications', [notifications[0]]);
+    renderAdminDashboard();
+    showToast('Alerte générale diffusée avec succès à tous les agents CUD !', 'success');
+  }
+}
+
+function triggerSystemBackup() {
+  const snapshot = {
+    exportedAt: new Date().toISOString(),
+    directions,
+    employes: employes.map(({ img, ...e }) => e),
+    topics,
+    meetings,
+    conversations,
+    chatHistory,
+    notifications,
+    files: files.map(({ dataUrl, ...f }) => f)
+  };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cud-collab-export-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Export JSON téléchargé. Les sauvegardes complètes de la base se gèrent dans Supabase (Database → Backups).', 'success');
+}
+
+// Fermer les panneaux au clic extérieur
+document.addEventListener('click', (e) => {
+  const notifPanel = document.getElementById('notif-panel');
+  if (notifPanel && !notifPanel.classList.contains('hidden') && !e.target.closest('#notif-panel') && !e.target.closest('[onclick*="toggleNotifications"]')) {
+    notifPanel.classList.add('hidden');
+  }
+
+  const userDropdown = document.getElementById('user-dropdown');
+  if (userDropdown && !userDropdown.classList.contains('hidden') && !e.target.closest('#user-dropdown') && !e.target.closest('[onclick*="toggleUserDropdown"]')) {
+    userDropdown.classList.add('hidden');
+  }
+});
+
+// Fermer modal avec Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeModal();
+    closeAdminLoginModal();
+    if (visioActive) endVisio();
+    const notifPanel = document.getElementById('notif-panel');
+    if (notifPanel) notifPanel.classList.add('hidden');
+  }
+});
+
+function initGlobalSearch() {
+  const searchInput = document.querySelector('header input');
+  if (!searchInput) return;
+
+  if (searchInput.parentElement) {
+    searchInput.parentElement.style.position = 'relative';
+  }
+
+  let dropdown = document.getElementById('global-search-dropdown');
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.id = 'global-search-dropdown';
+    dropdown.className = 'hidden absolute top-12 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-border z-50 p-4 space-y-3 max-h-96 overflow-y-auto fade-up';
+    if (searchInput.parentElement) searchInput.parentElement.appendChild(dropdown);
+  }
+
+  searchInput.oninput = function() {
+    const q = this.value.trim().toLowerCase();
+    if (!q) {
+      dropdown.classList.add('hidden');
+      return;
+    }
+
+    const matchedUsers = employes.filter(e => e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q)).slice(0, 3);
+    const matchedFiles = files.filter(f => f.name.toLowerCase().includes(q) || f.category.toLowerCase().includes(q)).slice(0, 3);
+    const matchedTopics = topics.filter(t => t.title.toLowerCase().includes(q)).slice(0, 3);
+
+    if (matchedUsers.length === 0 && matchedFiles.length === 0 && matchedTopics.length === 0) {
+      dropdown.innerHTML = `<p class="text-xs text-muted text-center py-2">Aucun résultat trouvé pour "${esc(q)}"</p>`;
+    } else {
+      let html = '';
+      if (matchedUsers.length > 0) {
+        html += `<p class="text-[10px] text-muted font-bold uppercase tracking-wider">Agents</p>`;
+        html += matchedUsers.map(u => `<div onclick="openConversationWith(${u.id}); document.getElementById('global-search-dropdown').classList.add('hidden')" class="flex items-center gap-2 p-2 hover:bg-surface rounded-xl cursor-pointer">
+          <img src="${getUserImg(u.img, 28)}" class="w-7 h-7 rounded-full object-cover">
+          <div><p class="text-xs font-semibold text-ink">${esc(u.name)}</p><p class="text-[10px] text-muted">${esc(u.role)}</p></div>
+        </div>`).join('');
+      }
+      if (matchedFiles.length > 0) {
+        html += `<p class="text-[10px] text-muted font-bold uppercase tracking-wider pt-2">Fichiers</p>`;
+        html += matchedFiles.map(f => `<div onclick="switchView('files'); document.getElementById('global-search-dropdown').classList.add('hidden')" class="flex items-center gap-2 p-2 hover:bg-surface rounded-xl cursor-pointer">
+          <i class="fas ${getFileIcon(f.type)} text-sm"></i>
+          <div class="flex-1 truncate"><p class="text-xs font-semibold text-ink truncate">${esc(f.name)}</p><p class="text-[10px] text-muted">${esc(f.size)}</p></div>
+        </div>`).join('');
+      }
+      if (matchedTopics.length > 0) {
+        html += `<p class="text-[10px] text-muted font-bold uppercase tracking-wider pt-2">Forums</p>`;
+        html += matchedTopics.map(t => `<div onclick="switchView('forums'); openTopic(${t.id}); document.getElementById('global-search-dropdown').classList.add('hidden')" class="flex items-center gap-2 p-2 hover:bg-surface rounded-xl cursor-pointer">
+          <i class="fas fa-comments text-primary text-sm"></i>
+          <p class="text-xs font-medium text-ink truncate">${esc(t.title)}</p>
+        </div>`).join('');
+      }
+      dropdown.innerHTML = html;
+    }
+    dropdown.classList.remove('hidden');
+  };
+}
+
+// ============================================================
+// INITIALISATION AU CHARGEMENT DE LA PAGE
+// ============================================================
+
+// Chargement affiché pendant chaque action qui parle au serveur.
+const LOADER_ACTIONS = {
+  createNewTopicFromModal: 'Publication du sujet…',
+  submitTopicReply: 'Envoi du commentaire…',
+  createNewMeetingFromModal: 'Planification de la réunion…',
+  saveMyProfile: 'Enregistrement du profil…',
+  saveAdminUserEdit: 'Enregistrement du compte…',
+  toggleUserStatus: 'Mise à jour du statut…',
+  deleteUserAccount: 'Suppression du compte…',
+  saveDirectionFromModal: 'Enregistrement de la direction…',
+  deleteDirection: 'Suppression de la direction…',
+  resetAdminDataBlock: 'Suppression des données…',
+  resetFileSharingData: 'Suppression des fichiers…',
+  triggerSystemBackup: 'Préparation de l’export…',
+  logoutUser: 'Déconnexion…',
+  startVisio: 'Démarrage de la visioconférence…',
+  startVisioWith: 'Préparation de l’appel…',
+  joinMeetingById: 'Connexion à la réunion…'
+};
+
+for (const [name, message] of Object.entries(LOADER_ACTIONS)) {
+  const original = window[name];
+  if (typeof original !== 'function') continue;
+  window[name] = function (...args) {
+    return withLoader(message, () => original.apply(this, args));
+  };
+}
+
+setTimeout(initGlobalSearch, 300);
+</script>
+</body>
+</html>

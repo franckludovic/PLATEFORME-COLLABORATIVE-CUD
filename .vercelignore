@@ -1,0 +1,22 @@
+# Dépendances et sorties locales
+node_modules/
+.vercel/
+.git/
+
+# Secrets et configuration locale (ne jamais déployer)
+.env
+.env.*
+.claude/
+.vscode/
+
+# Fichiers de développement local
+server.js
+supabaseClient.js
+supabase-auth-setup.sql
+PLATEFORME COLLABORATIVE CUD.html
+README.md
+DEPLOIEMENT-VERCEL.md
+CORRECTIONS.md
+
+# Médias lourds uploadés localement (à stocker dans Vercel Blob)
+uploads/

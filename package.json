@@ -1,0 +1,20 @@
+{
+  "name": "plateforme-collaborative-cud",
+  "version": "1.0.0",
+  "description": "CUD Collab — Plateforme Collaborative",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "vercel-dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
+    "@vercel/blob": "^0.27.0",
+    "dotenv": "^18.0.7"
+  }
+}

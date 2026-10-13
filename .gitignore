@@ -1,0 +1,25 @@
+# Dépendances
+node_modules/
+
+# Sortie de build
+.vercel/
+.next/
+dist/
+build/
+
+# Variables d'environnement (ne jamais committer)
+.env
+.env.local
+.env*.local
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Journaux
+*.log
+npm-debug.log*
+
+# Éditeur
+.vscode/
+.claude/
